@@ -10,6 +10,7 @@
 
 #include <SDL.h>
 
+#include "game.h"
 #include "platform.h"
 
 struct sdl_context
@@ -34,7 +35,7 @@ static void sdl_initialize(sdl_context *sdl, int width, int height)
 {
    SDL_Init(SDL_INIT_EVERYTHING);
 
-   sdl->window = SDL_CreateWindow(TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_ALLOW_HIGHDPI);
+   sdl->window = SDL_CreateWindow(TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
    if(!sdl->window)
    {
       plog("ERROR: Failed to create SDL window.\n");
@@ -103,6 +104,47 @@ static void sdl_process_input(sdl_context *sdl)
    }
 }
 
+static void sdl_render(sdl_context *sdl, game_texture backbuffer)
+{
+   // NOTE: Clear the background to black, so that black bars are displayed when
+   // the aspect ratio of the backbuffer and window don't match.
+   SDL_SetRenderDrawColor(sdl->renderer, 0, 0, 0, 255);
+   SDL_RenderClear(sdl->renderer);
+
+   // NOTE: Compute the destination size of the displayed backbuffer, accounting
+   // for aspect ratio differents.
+   int src_width = backbuffer.width;
+   int src_height = backbuffer.height;
+
+   int dst_width, dst_height;
+   SDL_GetRendererOutputSize(sdl->renderer, &dst_width, &dst_height);
+
+   float src_aspect = (float)src_width / (float)src_height;
+   float dst_aspect = (float)dst_width / (float)dst_height;
+
+   SDL_Rect dst_rect = {0, 0, dst_width, dst_height};
+   if(src_aspect > dst_aspect)
+   {
+      // NOTE: Bars on top and bottom.
+      int bar_height = (int)(0.5f * (dst_height - (dst_width / src_aspect)));
+      dst_rect.y += bar_height;
+      dst_rect.h -= (bar_height * 2);
+   }
+   else if(src_aspect < dst_aspect)
+   {
+      // NOTE: Bars on left and right;
+      int bar_width = (int)(0.5f * (dst_width - (dst_height * src_aspect)));
+      dst_rect.x += bar_width;
+      dst_rect.w -= (bar_width * 2);
+   }
+
+   // NOTE: Copy the backbuffer to SDL's renderer and present.
+   SDL_UpdateTexture(sdl->texture, 0, backbuffer.memory, backbuffer.width * sizeof(*backbuffer.memory));
+   SDL_RenderCopy(sdl->renderer, sdl->texture, 0, &dst_rect);
+
+   SDL_RenderPresent(sdl->renderer);
+}
+
 #define ELAPSED_SECONDS(start, end, freq) ((float)((end) - (start)) / (float)(freq))
 
 static void sdl_frame_end(sdl_context *sdl)
@@ -137,6 +179,7 @@ static void sdl_frame_end(sdl_context *sdl)
    // NOTE: Update values for next frame.
    sdl->frame_start = SDL_GetPerformanceCounter();
    sdl->actual_frame_seconds = dt;
+   sdl->frame_count++;
 
 #if DEBUG
    if((sdl->frame_count % sdl->refresh_rate) == 0)
@@ -147,21 +190,33 @@ static void sdl_frame_end(sdl_context *sdl)
       plog("---------------------------\n");
    }
 #endif
-   sdl->frame_count++;
 }
 
 
 int main(int argument_count, char **arguments)
 {
+   game_texture backbuffer = {};
+   backbuffer.width = 1920 / 2;
+   backbuffer.height = 1080 / 2;
+   backbuffer.memory = (u32 *)pallocate(sizeof(*backbuffer.memory) * backbuffer.width * backbuffer.height);
+
    sdl_context sdl = {};
-   sdl_initialize(&sdl, 1920 / 2, 1080 / 2);
+   sdl_initialize(&sdl, backbuffer.width, backbuffer.height);
 
    while(sdl.running)
    {
       sdl_process_input(&sdl);
 
-      // TODO: Update and render.
+      for(int y = 0; y < backbuffer.height; ++y)
+      {
+         for(int x = 0; x < backbuffer.width; ++x)
+         {
+            u32 color = 0x0000FFFF + ((x % 255) << 24);
+            backbuffer.memory[backbuffer.width*y + x] = color;
+         }
+      }
 
+      sdl_render(&sdl, backbuffer);
       sdl_frame_end(&sdl);
    }
 
