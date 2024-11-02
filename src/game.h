@@ -8,6 +8,9 @@
 // is visible to the platform implementations.
 
 #include "shared.h"
+#include "memory.h"
+
+#define GAME_TEXTURE_SIZE(t) (sizeof(*((t).memory)) * (t).width * (t).height)
 
 struct game_texture
 {
@@ -19,6 +22,10 @@ struct game_texture
 struct game_context
 {
    game_texture backbuffer;
+
+   memarena perma;
+   memarena frame;
+
    bool running;
 };
 

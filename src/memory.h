@@ -4,18 +4,19 @@
 /* (c) copyright 2024 Lawrence D. Kern /////////////////////////////////////// */
 /* /////////////////////////////////////////////////////////////////////////// */
 
-#define TITLE "BEAM"
+#define KILOBYTES(n) (1024LL * (n))
+#define MEGABYTES(n) (1024LL * KILOBYTES(n))
+#define GIGABYTES(n) (1024LL * MEGABYTES(n))
 
-#include <stdint.h>
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
+struct memarena
+{
+   u8 *base;
+   memsize size;
+   memsize used;
+};
 
-typedef int8_t s8;
-typedef int16_t s16;
-typedef int32_t s32;
-typedef int64_t s64;
-
-#include <stddef.h>
-typedef ptrdiff_t memsize;
+struct memmarker
+{
+   memarena *arena;
+   memsize used;
+};
