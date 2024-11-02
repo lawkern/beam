@@ -195,28 +195,19 @@ static void sdl_frame_end(sdl_context *sdl)
 
 int main(int argument_count, char **arguments)
 {
-   game_texture backbuffer = {};
-   backbuffer.width = 1920 / 2;
-   backbuffer.height = 1080 / 2;
-   backbuffer.memory = (u32 *)pallocate(sizeof(*backbuffer.memory) * backbuffer.width * backbuffer.height);
+   game_context game = {};
+   game_initialize(&game);
 
    sdl_context sdl = {};
-   sdl_initialize(&sdl, backbuffer.width, backbuffer.height);
+   sdl_initialize(&sdl, game.backbuffer.width, game.backbuffer.height);
 
-   while(sdl.running)
+   while(game.running && sdl.running)
    {
       sdl_process_input(&sdl);
 
-      for(int y = 0; y < backbuffer.height; ++y)
-      {
-         for(int x = 0; x < backbuffer.width; ++x)
-         {
-            u32 color = 0x0000FFFF + ((x % 255) << 24);
-            backbuffer.memory[backbuffer.width*y + x] = color;
-         }
-      }
+      game_update(&game);
 
-      sdl_render(&sdl, backbuffer);
+      sdl_render(&sdl, game.backbuffer);
       sdl_frame_end(&sdl);
    }
 

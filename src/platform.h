@@ -24,9 +24,9 @@
 #define PLATFORM_DEALLOCATE(name) void name(void *memory)
 
 
-// NOTE: These expand to the function signatures above, in case the macro
-// expansions are confusing. By convention, platform functions begin with the
-// letter p.
+// NOTE: These expand to forward declarations of the function signatures above,
+// in case the macro expansions are confusing. By convention, platform functions
+// begin with the letter p.
 PLATFORM_LOG(plog);
 PLATFORM_ALLOCATE(pallocate);
 PLATFORM_DEALLOCATE(pdeallocate);
