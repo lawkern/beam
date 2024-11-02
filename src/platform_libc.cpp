@@ -25,7 +25,7 @@ PLATFORM_LOG(plog)
 
 PLATFORM_ALLOCATE(pallocate)
 {
-   return malloc(size);
+   return calloc(1, size);
 }
 
 PLATFORM_DEALLOCATE(pdeallocate)

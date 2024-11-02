@@ -14,12 +14,12 @@
 // a given platform.
 #define PLATFORM_LOG(name) void name(char *fmt, ...)
 
-// NOTE: Allocate the requested number of bytes. This is intended for
-// bulk-allocations at startup, and makes no promises of being fast.
+// NOTE: Allocate the requested number of bytes. Cleared to zero. This is
+// intended for bulk-allocations at startup, it makes no promises of being fast.
 #define PLATFORM_ALLOCATE(name) void *name(memsize size)
 
 // NOTE: Deallocate memory previous allocated by the platform API. This is
-// mainly intended for undoing bulk-allocations at startup, and makes no
+// mainly intended for undoing bulk-allocations at startup, it makes no
 // promises of being fast.
 #define PLATFORM_DEALLOCATE(name) void name(void *memory)
 
