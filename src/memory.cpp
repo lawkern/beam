@@ -62,4 +62,4 @@ static memmarker arena_marker_push(memarena *arena)
 static void arena_marker_pop(memmarker *marker)
 {
    marker->arena->used = marker->used;
-};
+}
