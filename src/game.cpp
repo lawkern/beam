@@ -6,6 +6,8 @@
 #include "platform.h"
 
 #include "memory.cpp"
+#include "math.cpp"
+#include "render.cpp"
 
 GAME_INITIALIZE(game_initialize)
 {
@@ -36,12 +38,21 @@ GAME_UPDATE(game_update)
 {
    game_texture backbuffer = game->backbuffer;
 
-   for(int y = 0; y < backbuffer.height; ++y)
-   {
-      for(int x = 0; x < backbuffer.width; ++x)
-      {
-         u32 color = 0x0000FFFF + ((x % 255) << 24);
-         backbuffer.memory[backbuffer.width*y + x] = color;
-      }
-   }
+   clear(backbuffer, 0x333333FF);
+
+   vec2 mid = {backbuffer.width/2, backbuffer.height/2};
+
+   render_triangle triangle = {};
+   triangle.color = 0x00FF00FF;
+
+   triangle.vertices[0].x = mid.x;
+   triangle.vertices[0].y = mid.y - 100;
+
+   triangle.vertices[1].x = mid.x - 100;
+   triangle.vertices[1].y = mid.y + 100;
+
+   triangle.vertices[2].x = mid.x + 100;
+   triangle.vertices[2].y = mid.y + 100;
+
+   draw_triangle(backbuffer, triangle);
 }

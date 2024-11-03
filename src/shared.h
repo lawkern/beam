@@ -19,3 +19,6 @@ typedef int64_t s64;
 
 #include <stddef.h>
 typedef ptrdiff_t memsize;
+
+#define MAXIMUM(a, b) ((a) > (b) ? (a) : (b))
+#define MINIMUM(a, b) ((a) < (b) ? (a) : (b))

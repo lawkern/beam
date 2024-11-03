@@ -9,6 +9,8 @@
 
 #include "shared.h"
 #include "memory.h"
+#include "math.h"
+#include "render.h"
 
 #define GAME_TEXTURE_SIZE(t) (sizeof(*((t).memory)) * (t).width * (t).height)
 
