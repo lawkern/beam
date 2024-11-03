@@ -98,6 +98,14 @@ static void sdl_process_input(sdl_context *sdl)
             switch(event.key.keysym.sym)
             {
                case SDLK_ESCAPE: {sdl->running = false;} break;
+               case SDLK_f: {
+                  if(pressed)
+                  {
+                     bool is_fullscreen = (SDL_GetWindowFlags(sdl->window) & SDL_WINDOW_FULLSCREEN_DESKTOP);
+                     SDL_SetWindowFullscreen(sdl->window, is_fullscreen ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+                  }
+               } break;
+
             }
          } break;
       }

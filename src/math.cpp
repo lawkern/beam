@@ -4,8 +4,12 @@
 
 #include <math.h>
 
-#define TAU32 6.283185f
+// NOTE: Our trig functions are defined in terms of turns, when the typical
+// range of rotation 0 to tau maps to 0 to 1. This choice was mainly made to
+// make inspecting angles of rotation more intuitive: e.g. 90 degrees maps to
+// 0.25 turns instead of 1.570796... (tau/4) radians.
 
+#define TAU32 6.283185f
 static float sine(float turns)
 {
    float result = sinf(TAU32 * turns);
@@ -17,6 +21,7 @@ static float cosine(float turns)
    float result = cosf(TAU32 * turns);
    return(result);
 }
+#undef TAU32
 
 static int absolute_value(int value)
 {
@@ -67,6 +72,7 @@ static vec3 operator*(vec3 vector, float scalar)
    vec3 result;
    result.x = vector.x * scalar;
    result.y = vector.y * scalar;
+   result.z = vector.z * scalar;
 
    return(result);
 }

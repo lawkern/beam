@@ -22,8 +22,8 @@ GAME_INITIALIZE(game_initialize)
 
    // NOTE: Initialize backbuffer.
    game_texture *backbuffer = &game->backbuffer;
-   backbuffer->width = 960;
-   backbuffer->height = 540;
+   backbuffer->width = 640;
+   backbuffer->height = 400;
    backbuffer->memory = arena_array(&game->perma, u32, backbuffer->width*backbuffer->height);
    if(!backbuffer->memory)
    {
@@ -62,15 +62,14 @@ GAME_INITIALIZE(game_initialize)
    for(int index = 0; index < countof(game->entities); ++index)
    {
       entity *e = game->entities + index;
-      e->scale = v3(100.0f, 100.0f, 100.0f);
+      e->scale = 50.0f * v3(1, 1, 1);
 
-      vec3 offset = {
-         35.0f * (index - countof(game->entities)/2),
-         20.0f * (index - countof(game->entities)/2),
-         0,
-      };
-
-      e->translation = v3(backbuffer->width, backbuffer->height, 0)*0.5f + offset;
+      vec3 origin = {0.5f*backbuffer->width, 0.5f*backbuffer->height, 0};
+      e->translation = v3(
+         origin.x + 35.0f*(index - countof(game->entities)/2),
+         origin.y - 20.0f*(index - countof(game->entities)/2),
+         origin.z + 0
+      );
    }
 
    // NOTE: Initialization was successful.
