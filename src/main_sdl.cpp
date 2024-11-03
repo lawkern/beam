@@ -18,7 +18,7 @@ struct sdl_context
    SDL_Window *window;
    SDL_Renderer *renderer;
    SDL_Texture *texture;
-   SDL_GameController *controller;
+   SDL_GameController *controllers[GAME_CONTROLLER_COUNT_MAX];
    SDL_DisplayMode display_mode;
 
    bool running;
@@ -30,24 +30,6 @@ struct sdl_context
    float target_frame_seconds;
    float actual_frame_seconds;
 };
-
-static SDL_GameController *sdl_connect_controller(void)
-{
-   // TODO: Support multiple controllers.
-   SDL_GameController *result = 0;
-
-   int attached_controller_count = SDL_NumJoysticks();
-   for(int controller_index = 0; controller_index < attached_controller_count; ++controller_index)
-   {
-      if(SDL_IsGameController(controller_index))
-      {
-         result = SDL_GameControllerOpen(controller_index);
-         break;
-      }
-   }
-
-   return(result);
-}
 
 static void sdl_initialize(sdl_context *sdl, int width, int height)
 {
@@ -72,12 +54,6 @@ static void sdl_initialize(sdl_context *sdl, int width, int height)
    {
       plog("ERROR: Failed to create SDL texture.\n");
       return;
-   }
-
-   sdl->controller = sdl_connect_controller();
-   if(!sdl->controller)
-   {
-      plog("WARNING: No controllers were found: use the keyboard instead.\n");
    }
 
    // TODO: Handle multiple monitors properly.
@@ -105,28 +81,79 @@ static void sdl_initialize(sdl_context *sdl, int width, int height)
    sdl->running = true;
 }
 
+static void sdl_connect_controller(sdl_context *sdl, game_input *input)
+{
+   // NOTE: Find the first available controller slot and store the controller
+   // pointer. The indices for sdl->controllers and input->controllers must be
+   // manually maintained.
+
+   for(int controller_index = 0; controller_index < GAME_CONTROLLER_COUNT_MAX; ++controller_index)
+   {
+      if(sdl->controllers[controller_index] == 0 && SDL_IsGameController(controller_index))
+      {
+         sdl->controllers[controller_index] = SDL_GameControllerOpen(controller_index);
+         if(sdl->controllers[controller_index])
+         {
+            input->controllers[controller_index].connected = true;
+            plog("Controller added at slot %d\n", controller_index);
+         }
+         else
+         {
+            plog("ERROR: %s\n", SDL_GetError());
+         }
+
+         // TODO: Should we only break on success? Look into what types of
+         // errors are actually caught here.
+         break;
+      }
+   }
+}
+
+static void sdl_disconnect_controller(sdl_context *sdl, game_input *input, int controller_index)
+{
+   assert(controller_index >= 0);
+   assert(controller_index < GAME_CONTROLLER_COUNT_MAX);
+   assert(sdl->controllers[controller_index]);
+
+   SDL_GameControllerClose(sdl->controllers[controller_index]);
+
+   sdl->controllers[controller_index] = 0;
+   input->controllers[controller_index].connected = false;
+
+   plog("Controller removed from slot %d\n", controller_index);
+}
+
+#define GAME_CONTROLLER_INDEX_NULL (-1)
+
+static int sdl_get_controller_index(sdl_context *sdl, SDL_JoystickID id)
+{
+   int result = GAME_CONTROLLER_INDEX_NULL;
+
+   for(int controller_index = 0; controller_index < GAME_CONTROLLER_COUNT_MAX; ++controller_index)
+   {
+      SDL_GameController *test = sdl->controllers[controller_index];
+      if(test)
+      {
+         SDL_Joystick *joystick = SDL_GameControllerGetJoystick(test);
+         if(id == SDL_JoystickInstanceID(joystick))
+         {
+            result = controller_index;
+            break;
+         }
+      }
+   }
+
+   return(result);
+}
+
 static void sdl_process_button(game_button *button, bool pressed)
 {
    button->pressed = pressed;
    button->transitioned = true;
 }
 
-static bool sdl_device_is_controller(SDL_JoystickID id, SDL_GameController *controller)
-{
-   bool result = false;
-   if(controller)
-   {
-      SDL_Joystick *joystick = SDL_GameControllerGetJoystick(controller);
-      result = (id == SDL_JoystickInstanceID(joystick));
-   }
-
-   return(result);
-}
-
 static void sdl_process_input(sdl_context *sdl, game_input *input)
 {
-   game_controller *con = input->controllers + 0;
-
    SDL_Event event;
    while(SDL_PollEvent(&event))
    {
@@ -138,8 +165,10 @@ static void sdl_process_input(sdl_context *sdl, game_input *input)
 
          case SDL_KEYUP:
          case SDL_KEYDOWN: {
-            bool pressed = event.type == SDL_KEYDOWN;
+            // NOTE: Slot 0 is controlled by both the first gamepad and the keyboard.
+            game_controller *keyboard = input->controllers + 0;
 
+            bool pressed = event.type == SDL_KEYDOWN;
             switch(event.key.keysym.sym)
             {
                case SDLK_ESCAPE: {sdl->running = false;} break;
@@ -151,29 +180,31 @@ static void sdl_process_input(sdl_context *sdl, game_input *input)
                   }
                } break;
 
-               case SDLK_i: {sdl_process_button(&con->action_up, pressed);} break;
-               case SDLK_k: {sdl_process_button(&con->action_down, pressed);} break;
-               case SDLK_j: {sdl_process_button(&con->action_left, pressed);} break;
-               case SDLK_l: {sdl_process_button(&con->action_right, pressed);} break;
+               case SDLK_i: {sdl_process_button(&keyboard->action_up, pressed);} break;
+               case SDLK_k: {sdl_process_button(&keyboard->action_down, pressed);} break;
+               case SDLK_j: {sdl_process_button(&keyboard->action_left, pressed);} break;
+               case SDLK_l: {sdl_process_button(&keyboard->action_right, pressed);} break;
 
-               case SDLK_w: {sdl_process_button(&con->move_up, pressed);} break;
-               case SDLK_s: {sdl_process_button(&con->move_down, pressed);} break;
-               case SDLK_a: {sdl_process_button(&con->move_left, pressed);} break;
-               case SDLK_d: {sdl_process_button(&con->move_right, pressed);} break;
+               case SDLK_w: {sdl_process_button(&keyboard->move_up, pressed);} break;
+               case SDLK_s: {sdl_process_button(&keyboard->move_down, pressed);} break;
+               case SDLK_a: {sdl_process_button(&keyboard->move_left, pressed);} break;
+               case SDLK_d: {sdl_process_button(&keyboard->move_right, pressed);} break;
 
-               case SDLK_q: {sdl_process_button(&con->shoulder_left, pressed);} break;
-               case SDLK_o: {sdl_process_button(&con->shoulder_right, pressed);} break;
-               case SDLK_SPACE:     {sdl_process_button(&con->start, pressed);} break;
-               case SDLK_BACKSPACE: {sdl_process_button(&con->back, pressed);} break;
+               case SDLK_q: {sdl_process_button(&keyboard->shoulder_left, pressed);} break;
+               case SDLK_o: {sdl_process_button(&keyboard->shoulder_right, pressed);} break;
+               case SDLK_SPACE:     {sdl_process_button(&keyboard->start, pressed);} break;
+               case SDLK_BACKSPACE: {sdl_process_button(&keyboard->back, pressed);} break;
             }
          } break;
 
          case SDL_CONTROLLERBUTTONUP:
          case SDL_CONTROLLERBUTTONDOWN: {
-            if(sdl_device_is_controller(event.cdevice.which, sdl->controller))
+            int controller_index = sdl_get_controller_index(sdl, event.cdevice.which);
+            if(controller_index != GAME_CONTROLLER_INDEX_NULL)
             {
-               bool pressed = event.cbutton.state == SDL_PRESSED;
+               game_controller *con = input->controllers + controller_index;
 
+               bool pressed = event.cbutton.state == SDL_PRESSED;
                switch(event.cbutton.button)
                {
                   // TODO: Confirm if other controllers map buttons based on name or position.
@@ -196,17 +227,14 @@ static void sdl_process_input(sdl_context *sdl, game_input *input)
          } break;
 
          case SDL_CONTROLLERDEVICEADDED: {
-            if(!sdl->controller)
-            {
-               sdl->controller = sdl_connect_controller();
-            }
+            sdl_connect_controller(sdl, input);
          } break;
 
          case SDL_CONTROLLERDEVICEREMOVED: {
-            if(sdl_device_is_controller(event.cdevice.which, sdl->controller))
+            int controller_index = sdl_get_controller_index(sdl, event.cdevice.which);
+            if(controller_index != GAME_CONTROLLER_INDEX_NULL)
             {
-               SDL_GameControllerClose(sdl->controller);
-               sdl->controller = sdl_connect_controller();
+               sdl_disconnect_controller(sdl, input, controller_index);
             }
          } break;
       }
@@ -293,10 +321,8 @@ static void sdl_frame_end(sdl_context *sdl)
 #if DEBUG
    if((sdl->frame_count % sdl->refresh_rate) == 0)
    {
-      plog("Actual frame time: %0.3fms\n", sdl->actual_frame_seconds * 1000.0f);
-      plog("   Work: %0.3fms\n", work_ms);
-      plog("   Sleep: %dms\n", sleep_ms);
-      plog("---------------------------\n");
+      float frame_ms = sdl->actual_frame_seconds * 1000.0f;
+      plog("Frame time: % .3fms (Work: % .3fms, Sleep: % 3dms)\n", frame_ms, work_ms, sleep_ms);
    }
 #endif
 }

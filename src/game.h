@@ -53,11 +53,15 @@ struct game_controller
          game_button back;
       };
    };
+
+   bool connected;
 };
+
+#define GAME_CONTROLLER_COUNT_MAX 4
 
 struct game_input
 {
-   game_controller controllers[8];
+   game_controller controllers[GAME_CONTROLLER_COUNT_MAX];
 };
 
 struct game_context
