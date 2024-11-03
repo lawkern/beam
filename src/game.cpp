@@ -110,9 +110,10 @@ GAME_UPDATE(game_update)
    float delta = dt * 250.0f;
    for(int controller_index = 0; controller_index < countof(input->controllers); ++controller_index)
    {
-      assert(controller_index < countof(game->entities));
-
       game_controller *con = input->controllers + controller_index;
+      if(was_pressed(con->back)) game->running = false;
+
+      assert(controller_index < countof(game->entities));
       entity *e = game->entities + controller_index;
 
       vec3 direction = {0, 0, 0};

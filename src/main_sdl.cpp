@@ -18,7 +18,7 @@ struct sdl_context
    SDL_Window *window;
    SDL_Renderer *renderer;
    SDL_Texture *texture;
-   SDL_GameController *gamepad;
+   SDL_GameController *controller;
    SDL_DisplayMode display_mode;
 
    bool running;
@@ -30,6 +30,24 @@ struct sdl_context
    float target_frame_seconds;
    float actual_frame_seconds;
 };
+
+static SDL_GameController *sdl_connect_controller(void)
+{
+   // TODO: Support multiple controllers.
+   SDL_GameController *result = 0;
+
+   int attached_controller_count = SDL_NumJoysticks();
+   for(int controller_index = 0; controller_index < attached_controller_count; ++controller_index)
+   {
+      if(SDL_IsGameController(controller_index))
+      {
+         result = SDL_GameControllerOpen(controller_index);
+         break;
+      }
+   }
+
+   return(result);
+}
 
 static void sdl_initialize(sdl_context *sdl, int width, int height)
 {
@@ -54,6 +72,12 @@ static void sdl_initialize(sdl_context *sdl, int width, int height)
    {
       plog("ERROR: Failed to create SDL texture.\n");
       return;
+   }
+
+   sdl->controller = sdl_connect_controller();
+   if(!sdl->controller)
+   {
+      plog("WARNING: No controllers were found: use the keyboard instead.\n");
    }
 
    // TODO: Handle multiple monitors properly.
@@ -87,6 +111,18 @@ static void sdl_process_button(game_button *button, bool pressed)
    button->transitioned = true;
 }
 
+static bool sdl_device_is_controller(SDL_JoystickID id, SDL_GameController *controller)
+{
+   bool result = false;
+   if(controller)
+   {
+      SDL_Joystick *joystick = SDL_GameControllerGetJoystick(controller);
+      result = (id == SDL_JoystickInstanceID(joystick));
+   }
+
+   return(result);
+}
+
 static void sdl_process_input(sdl_context *sdl, game_input *input)
 {
    game_controller *con = input->controllers + 0;
@@ -103,6 +139,7 @@ static void sdl_process_input(sdl_context *sdl, game_input *input)
          case SDL_KEYUP:
          case SDL_KEYDOWN: {
             bool pressed = event.type == SDL_KEYDOWN;
+
             switch(event.key.keysym.sym)
             {
                case SDLK_ESCAPE: {sdl->running = false;} break;
@@ -126,8 +163,50 @@ static void sdl_process_input(sdl_context *sdl, game_input *input)
 
                case SDLK_q: {sdl_process_button(&con->shoulder_left, pressed);} break;
                case SDLK_o: {sdl_process_button(&con->shoulder_right, pressed);} break;
-               case SDLK_SPACE: {sdl_process_button(&con->start, pressed);} break;
+               case SDLK_SPACE:     {sdl_process_button(&con->start, pressed);} break;
                case SDLK_BACKSPACE: {sdl_process_button(&con->back, pressed);} break;
+            }
+         } break;
+
+         case SDL_CONTROLLERBUTTONUP:
+         case SDL_CONTROLLERBUTTONDOWN: {
+            if(sdl_device_is_controller(event.cdevice.which, sdl->controller))
+            {
+               bool pressed = event.cbutton.state == SDL_PRESSED;
+
+               switch(event.cbutton.button)
+               {
+                  // TODO: Confirm if other controllers map buttons based on name or position.
+                  case SDL_CONTROLLER_BUTTON_A: {sdl_process_button(&con->action_down, pressed);} break;
+                  case SDL_CONTROLLER_BUTTON_B: {sdl_process_button(&con->action_right, pressed);} break;
+                  case SDL_CONTROLLER_BUTTON_X: {sdl_process_button(&con->action_left, pressed);} break;
+                  case SDL_CONTROLLER_BUTTON_Y: {sdl_process_button(&con->action_up, pressed);} break;
+
+                  case SDL_CONTROLLER_BUTTON_DPAD_UP:    {sdl_process_button(&con->move_up, pressed);} break;
+                  case SDL_CONTROLLER_BUTTON_DPAD_DOWN:  {sdl_process_button(&con->move_down, pressed);} break;
+                  case SDL_CONTROLLER_BUTTON_DPAD_LEFT:  {sdl_process_button(&con->move_left, pressed);} break;
+                  case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: {sdl_process_button(&con->move_right, pressed);} break;
+
+                  case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:  {sdl_process_button(&con->shoulder_left, pressed);} break;
+                  case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: {sdl_process_button(&con->shoulder_right, pressed);} break;
+                  case SDL_CONTROLLER_BUTTON_START: {sdl_process_button(&con->start, pressed);} break;
+                  case SDL_CONTROLLER_BUTTON_BACK:  {sdl_process_button(&con->back, pressed);} break;
+               }
+            }
+         } break;
+
+         case SDL_CONTROLLERDEVICEADDED: {
+            if(!sdl->controller)
+            {
+               sdl->controller = sdl_connect_controller();
+            }
+         } break;
+
+         case SDL_CONTROLLERDEVICEREMOVED: {
+            if(sdl_device_is_controller(event.cdevice.which, sdl->controller))
+            {
+               SDL_GameControllerClose(sdl->controller);
+               sdl->controller = sdl_connect_controller();
             }
          } break;
       }

@@ -75,7 +75,7 @@ static void convert_obj(FILE *out, char *filename)
                    &v0, &t0, &n0,
                    &v1, &t1, &n1,
                    &v2, &t2, &n2);
-            fprintf(out, "   {{%d, %d, %d}, {%d, %d, %d}, {%d, %d, %d}, 0xFFFFFFFF},\n",
+            fprintf(out, "   {{%d, %d, %d}, {%d, %d, %d}, {%d, %d, %d}, 0x00FFFFFF},\n",
                     v0 - 1, v1 - 1, v2 - 1,
                     t0 - 1, t1 - 1, t2 - 1,
                     n0 - 1, n1 - 1, n2 - 1);
