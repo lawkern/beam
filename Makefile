@@ -20,7 +20,7 @@ compile:
 	clang ./src/main_sdl.cpp -O0 -DDEBUG=1 ./build/platform_debug.o   ./build/game_debug.o   -o ./build/beam_debug   $(CFLAGS) $(LDFLAGS) `sdl2-config --cflags --libs`
 
 pack:
-	clang ./src/pack.cpp -o ./build/pack
+	clang ./src/main_pack.cpp -o ./build/pack
 	./build/pack cube.obj
 
 run:
