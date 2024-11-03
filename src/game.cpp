@@ -126,7 +126,7 @@ GAME_UPDATE(game_update)
    for(int controller_index = 0; controller_index < countof(input->controllers); ++controller_index)
    {
       game_controller *con = input->controllers + controller_index;
-      if(con->connected)
+      if(controller_index == GAME_CONTROLLER_INDEX_KEYBOARD || con->connected)
       {
          print_controller_inputs(input, controller_index);
 

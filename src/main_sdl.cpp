@@ -123,8 +123,6 @@ static void sdl_disconnect_controller(sdl_context *sdl, game_input *input, int c
    plog("Controller removed from slot %d\n", controller_index);
 }
 
-#define GAME_CONTROLLER_INDEX_NULL (-1)
-
 static int sdl_get_controller_index(sdl_context *sdl, SDL_JoystickID id)
 {
    int result = GAME_CONTROLLER_INDEX_NULL;
@@ -165,8 +163,7 @@ static void sdl_process_input(sdl_context *sdl, game_input *input)
 
          case SDL_KEYUP:
          case SDL_KEYDOWN: {
-            // NOTE: Slot 0 is controlled by both the first gamepad and the keyboard.
-            game_controller *keyboard = input->controllers + 0;
+            game_controller *keyboard = input->controllers + GAME_CONTROLLER_INDEX_KEYBOARD;
 
             bool pressed = event.type == SDL_KEYDOWN;
             switch(event.key.keysym.sym)

@@ -29,6 +29,9 @@ struct game_button
    bool transitioned;
 };
 
+#define GAME_CONTROLLER_INDEX_NULL    (-1)
+#define GAME_CONTROLLER_INDEX_KEYBOARD (0)
+
 #define GAME_BUTTONS                            \
    X(action_up)                                 \
    X(action_down)                               \
