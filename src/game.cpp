@@ -10,6 +10,27 @@
 #include "assets.cpp"
 #include "render.cpp"
 
+static bool is_held(game_button button)
+{
+   // NOTE(law): The specified button is currently pressed.
+   bool result = (button.pressed);
+   return(result);
+}
+
+static bool was_pressed(game_button button)
+{
+   // NOTE(law): The specified button was pressed on this frame.
+   bool result = (button.pressed && button.transitioned);
+   return(result);
+}
+
+static bool was_released(game_button button)
+{
+   // NOTE(law): The specified button was released on this frame.
+   bool result = (!button.pressed && button.transitioned);
+   return(result);
+}
+
 GAME_INITIALIZE(game_initialize)
 {
    // NOTE: Initialize memory.
@@ -79,8 +100,30 @@ GAME_INITIALIZE(game_initialize)
 GAME_UPDATE(game_update)
 {
    game_texture backbuffer = game->backbuffer;
+   game_input *input = game->inputs + game->input_index++;
+   game->input_index %= countof(game->inputs);
+
    memarena *perma = &game->perma;
    memarena *frame = &game->frame;
+
+   // NOTE: Handle user input.
+   float delta = dt * 250.0f;
+   for(int controller_index = 0; controller_index < countof(input->controllers); ++controller_index)
+   {
+      assert(controller_index < countof(game->entities));
+
+      game_controller *con = input->controllers + controller_index;
+      entity *e = game->entities + controller_index;
+
+      vec3 direction = {0, 0, 0};
+      if(is_held(con->move_up))    direction.y -= 1;
+      if(is_held(con->move_down))  direction.y += 1;
+      if(is_held(con->move_left))  direction.x -= 1;
+      if(is_held(con->move_right)) direction.x += 1;
+
+      vec3 movement = normalize(direction) * delta;
+      e->translation += movement;
+   }
 
    push_clear(game, 0x333333FF);
 
@@ -153,15 +196,29 @@ GAME_UPDATE(game_update)
 
    // NOTE: End of frame cleanup.
    arena_reset(frame);
+
+   // NOTE: Bulk copy inputs to the next frame.
+   game_input *next_input = game->inputs + game->input_index;
+   *next_input = *input;
+
+   // NOTE: Clear the transition state for each controller's buttons.
+   for(int controller_index = 0; controller_index < countof(input->controllers); ++controller_index)
+   {
+      game_controller *next = next_input->controllers + controller_index;
+      for(int button_index = 0; button_index < countof(next->buttons); ++button_index)
+      {
+         next->buttons[button_index].transitioned = false;
+      }
+   }
 }
 
 GAME_RENDER(game_render)
 {
    game_texture backbuffer = game->backbuffer;
 
-   for(int index = 0; index < game->render_command_count; ++index)
+   for(int command_index = 0; command_index < game->render_command_count; ++command_index)
    {
-      render_command *command = game->render_commands + index;
+      render_command *command = game->render_commands + command_index;
       switch(command->kind)
       {
          case RENDERCOMMAND_CLEAR: {

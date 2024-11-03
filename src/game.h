@@ -23,9 +23,49 @@ struct game_texture
    u32 *memory;
 };
 
+struct game_button
+{
+   bool pressed;
+   bool transitioned;
+};
+
+struct game_controller
+{
+   union
+   {
+      game_button buttons[16];
+      struct
+      {
+         game_button action_up;
+         game_button action_down;
+         game_button action_left;
+         game_button action_right;
+
+         game_button move_up;
+         game_button move_down;
+         game_button move_left;
+         game_button move_right;
+
+         game_button shoulder_left;
+         game_button shoulder_right;
+
+         game_button start;
+         game_button back;
+      };
+   };
+};
+
+struct game_input
+{
+   game_controller controllers[8];
+};
+
 struct game_context
 {
    game_texture backbuffer;
+
+   int input_index;
+   game_input inputs[16];
 
    memarena perma;
    memarena frame;

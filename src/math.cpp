@@ -21,11 +21,22 @@ static float cosine(float turns)
    float result = cosf(TAU32 * turns);
    return(result);
 }
+
+static float tangent(float turns)
+{
+   float result = tanf(TAU32 * turns);
+   return(result);
+}
 #undef TAU32
 
 static int absolute_value(int value)
 {
    return abs(value);
+}
+
+static float square_root(float value)
+{
+   return sqrtf(value);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -58,27 +69,118 @@ static vec4 v4(vec3 xyz, float w)
    return(result);
 }
 
+static vec2 operator+(vec2 a, vec2 b)
+{
+   vec2 result = {a.x + b.x, a.y + b.y};
+   return(result);
+}
+static vec2 operator-(vec2 a, vec2 b)
+{
+   vec2 result = {a.x - b.x, a.y - b.y};
+   return(result);
+}
+static vec2 operator*(vec2 v, float s)
+{
+   vec2 result = {s*v.x, s*v.y};
+   return(result);
+}
+static vec2 operator/(vec2 v, float s)
+{
+   float inv = 1.0f / s;
+   vec2 result = {inv*v.x, inv*v.y};
+   return(result);
+}
+
 static vec3 operator+(vec3 a, vec3 b)
 {
-   vec3 result;
-   result.x = a.x + b.x;
-   result.y = a.y + b.y;
+   vec3 result = {a.x + b.x, a.y + b.y, a.z + b.z};
+   return(result);
+}
+static vec3 operator-(vec3 a, vec3 b)
+{
+   vec3 result = {a.x - b.x, a.y - b.y, a.z - b.z};
+   return(result);
+}
+static vec3 operator*(vec3 v, float s)
+{
+   vec3 result = {s*v.x, s*v.y, s*v.z};
+   return(result);
+}
+static vec3 operator/(vec3 v, float s)
+{
+   float inv = 1.0f / s;
+   vec3 result = {inv*v.x, inv*v.y, inv*v.z};
+   return(result);
+}
+
+static vec4 operator+(vec4 a, vec4 b)
+{
+   vec4 result = {a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w};
+   return(result);
+}
+static vec4 operator-(vec4 a, vec4 b)
+{
+   vec4 result = {a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w};
+   return(result);
+}
+static vec4 operator*(vec4 v, float s)
+{
+   vec4 result = {s*v.x, s*v.y, s*v.z, s*v.w};
+   return(result);
+}
+static vec4 operator/(vec4 v, float s)
+{
+   float inv = 1.0f / s;
+   vec4 result = {inv*v.x, inv*v.y, inv*v.z, inv*v.w};
+   return(result);
+}
+
+static vec2 operator*(float s, vec2 v) {return(v * s); }
+static vec2 operator+=(vec2 &a, vec2 b) { a = a + b; return(a); }
+static vec2 operator-=(vec2 &a, vec2 b) { a = a - b; return(a); }
+static vec2 operator*=(vec2 &v, float s) { v = v * s; return(v); }
+static vec2 operator/=(vec2 &v, float s) { v = v / s; return(v); }
+
+static vec3 operator*(float s, vec3 v) {return(v * s); }
+static vec3 operator+=(vec3 &a, vec3 b) { a = a + b; return(a); }
+static vec3 operator-=(vec3 &a, vec3 b) { a = a - b; return(a); }
+static vec3 operator*=(vec3 &v, float s) { v = v * s; return(v); }
+static vec3 operator/=(vec3 &v, float s) { v = v / s; return(v); }
+
+static vec4 operator*(float s, vec4 v) {return(v * s); }
+static vec4 operator+=(vec4 &a, vec4 b) { a = a + b; return(a); }
+static vec4 operator-=(vec4 &a, vec4 b) { a = a - b; return(a); }
+static vec4 operator*=(vec4 &v, float s) { v = v * s; return(v); }
+static vec4 operator/=(vec4 &v, float s) { v = v / s; return(v); }
+
+static float length(vec2 v)
+{
+   return square_root(v.x*v.x + v.y*v.y);
+}
+
+static float length(vec3 v)
+{
+   return square_root(v.x*v.x + v.y*v.y + v.z*v.z);
+}
+
+static vec2 normalize(vec2 v)
+{
+   vec2 result = {};
+
+   float len = length(v);
+   if(len != 0.0f) result = v / len;
 
    return(result);
 }
 
-static vec3 operator*(vec3 vector, float scalar)
+static vec3 normalize(vec3 v)
 {
-   vec3 result;
-   result.x = vector.x * scalar;
-   result.y = vector.y * scalar;
-   result.z = vector.z * scalar;
+   vec3 result = {};
+
+   float len = length(v);
+   if(len != 0.0f) result = v / len;
 
    return(result);
-}
-static vec3 operator*(float scalar, vec3 vector)
-{
-   return(vector * scalar);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -166,6 +268,8 @@ static mat4 make_rotationz(float turns)
 
    return(result);
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 static vec4 mul(mat4 m, vec4 v)
 {

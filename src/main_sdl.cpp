@@ -81,8 +81,16 @@ static void sdl_initialize(sdl_context *sdl, int width, int height)
    sdl->running = true;
 }
 
-static void sdl_process_input(sdl_context *sdl)
+static void sdl_process_button(game_button *button, bool pressed)
 {
+   button->pressed = pressed;
+   button->transitioned = true;
+}
+
+static void sdl_process_input(sdl_context *sdl, game_input *input)
+{
+   game_controller *con = input->controllers + 0;
+
    SDL_Event event;
    while(SDL_PollEvent(&event))
    {
@@ -106,6 +114,20 @@ static void sdl_process_input(sdl_context *sdl)
                   }
                } break;
 
+               case SDLK_i: {sdl_process_button(&con->action_up, pressed);} break;
+               case SDLK_k: {sdl_process_button(&con->action_down, pressed);} break;
+               case SDLK_j: {sdl_process_button(&con->action_left, pressed);} break;
+               case SDLK_l: {sdl_process_button(&con->action_right, pressed);} break;
+
+               case SDLK_w: {sdl_process_button(&con->move_up, pressed);} break;
+               case SDLK_s: {sdl_process_button(&con->move_down, pressed);} break;
+               case SDLK_a: {sdl_process_button(&con->move_left, pressed);} break;
+               case SDLK_d: {sdl_process_button(&con->move_right, pressed);} break;
+
+               case SDLK_q: {sdl_process_button(&con->shoulder_left, pressed);} break;
+               case SDLK_o: {sdl_process_button(&con->shoulder_right, pressed);} break;
+               case SDLK_SPACE: {sdl_process_button(&con->start, pressed);} break;
+               case SDLK_BACKSPACE: {sdl_process_button(&con->back, pressed);} break;
             }
          } break;
       }
@@ -210,7 +232,7 @@ int main(int argument_count, char **arguments)
 
    while(game.running && sdl.running)
    {
-      sdl_process_input(&sdl);
+      sdl_process_input(&sdl, game.inputs + game.input_index);
 
       game_update(&game, sdl.actual_frame_seconds);
       game_render(&game);

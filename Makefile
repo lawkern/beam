@@ -3,6 +3,7 @@ CFLAGS += -Wno-unused-variable
 CFLAGS += -Wno-unused-function
 CFLAGS += -Wno-writable-strings
 CFLAGS += -Wno-missing-braces
+CFLAGS += -Wno-nested-anon-types
 CFLAGS += -Wno-gnu-anonymous-struct
 
 LDFLAGS = -lm
