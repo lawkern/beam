@@ -8,7 +8,10 @@
 // support SDL. It may be superceded by dedicated main_*.cpp files in the
 // future, e.g. main_win32.cpp, main_macos.cpp, etc.
 
-#include <SDL.h>
+// NOTE: The SDL header is included using quotes instead of angle brackets to
+// ensure we get the version SDL2-config picks up, instead of whatever is lying
+// around in PATH.
+#include "SDL.h"
 
 #include "game.h"
 #include "platform.h"
@@ -31,6 +34,26 @@ struct sdl_context
    float actual_frame_seconds;
 };
 
+PLATFORM_LOG(plog)
+{
+   va_list arguments;
+   va_start(arguments, fmt);
+   {
+      SDL_LogMessageV(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, fmt, arguments);
+   }
+   va_end(arguments);
+}
+
+PLATFORM_ALLOCATE(pallocate)
+{
+   return SDL_calloc(1, size);
+}
+
+PLATFORM_DEALLOCATE(pdeallocate)
+{
+   SDL_free(memory);
+}
+
 static void sdl_initialize(sdl_context *sdl, int width, int height)
 {
    SDL_Init(SDL_INIT_EVERYTHING);
@@ -42,7 +65,7 @@ static void sdl_initialize(sdl_context *sdl, int width, int height)
       return;
    }
 
-   sdl->renderer = SDL_CreateRenderer(sdl->window, -1, 0);
+   sdl->renderer = SDL_CreateRenderer(sdl->window, -1, SDL_RENDERER_PRESENTVSYNC);
    if(!sdl->renderer)
    {
       plog("ERROR: Failed to create SDL renderer.\n");

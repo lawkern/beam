@@ -13,11 +13,8 @@ compile:
 	clang ./src/game.cpp -O2 -DDEBUG=0 -c -o ./build/game_release.o $(CFLAGS)
 	clang ./src/game.cpp -O0 -DDEBUG=1 -c -o ./build/game_debug.o   $(CFLAGS)
 
-	clang ./src/platform_libc.cpp -O2 -DDEBUG=0 -c -o ./build/platform_release.o $(CFLAGS)
-	clang ./src/platform_libc.cpp -O0 -DDEBUG=1 -c -o ./build/platform_debug.o   $(CFLAGS)
-
-	clang ./src/main_sdl.cpp -O2 -DDEBUG=0 ./build/platform_release.o ./build/game_release.o -o ./build/beam_release $(CFLAGS) $(LDFLAGS) `sdl2-config --cflags --libs`
-	clang ./src/main_sdl.cpp -O0 -DDEBUG=1 ./build/platform_debug.o   ./build/game_debug.o   -o ./build/beam_debug   $(CFLAGS) $(LDFLAGS) `sdl2-config --cflags --libs`
+	clang ./src/main_sdl.cpp -O2 -DDEBUG=0 ./build/game_release.o -o ./build/beam_release $(CFLAGS) $(LDFLAGS) `sdl2-config --cflags --libs`
+	clang ./src/main_sdl.cpp -O0 -DDEBUG=1 ./build/game_debug.o   -o ./build/beam_debug   $(CFLAGS) $(LDFLAGS) `sdl2-config --cflags --libs`
 
 pack:
 	clang ./src/main_pack.cpp -o ./build/pack
