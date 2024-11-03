@@ -130,9 +130,9 @@ static void draw_line(game_texture texture, int x0, int y0, int x1, int y1, u32 
 
 static void draw_triangle(game_texture texture, render_triangle triangle)
 {
-   vec2 v0 = triangle.vertices[0];
-   vec2 v1 = triangle.vertices[1];
-   vec2 v2 = triangle.vertices[2];
+   vec2 v0 = triangle.vertices[0].xy;
+   vec2 v1 = triangle.vertices[1].xy;
+   vec2 v2 = triangle.vertices[2].xy;
 
    draw_line(texture, v0.x, v0.y, v1.x, v1.y, triangle.color);
    draw_line(texture, v1.x, v1.y, v2.x, v2.y, triangle.color);

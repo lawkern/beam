@@ -10,6 +10,7 @@
 #include "shared.h"
 #include "memory.h"
 #include "math.h"
+#include "assets.h"
 #include "render.h"
 
 #define GAME_TEXTURE_SIZE(t) (sizeof(*((t).memory)) * (t).width * (t).height)
@@ -27,6 +28,8 @@ struct game_context
 
    memarena perma;
    memarena frame;
+
+   mesh_asset debug_mesh;
 
    int triangle_count;
    int triangle_count_max;

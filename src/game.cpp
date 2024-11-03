@@ -7,6 +7,7 @@
 
 #include "memory.cpp"
 #include "math.cpp"
+#include "assets.cpp"
 #include "render.cpp"
 
 GAME_INITIALIZE(game_initialize)
@@ -47,6 +48,14 @@ GAME_INITIALIZE(game_initialize)
       return;
    }
 
+   // NOTE: Load assets.
+   game->debug_mesh.vertex_count = countof(cube_vertices);
+   game->debug_mesh.vertices = cube_vertices;
+   game->debug_mesh.texcoord_count = countof(cube_texcoords);
+   game->debug_mesh.texcoords = cube_texcoords;
+   game->debug_mesh.face_count = countof(cube_faces);
+   game->debug_mesh.faces = cube_faces;
+
    // NOTE: Initialization was successful.
    game->running = true;
 }
@@ -59,26 +68,49 @@ GAME_UPDATE(game_update)
 
    push_clear(game, 0x333333FF);
 
+   // NOTE: Test basic triangle drawing.
    int debug_triangle_count = 20;
    for(int index = 0; index < debug_triangle_count; ++index)
    {
       assert(game->triangle_count < game->triangle_count_max);
       int triangle_index = game->triangle_count++;
-      render_triangle *triangle = game->triangles + triangle_index;
 
+      render_triangle *triangle = game->triangles + triangle_index;
       triangle->color = 0x00FF00FF;
 
-      vec2 mid = {backbuffer.width/2, backbuffer.height/2};
-      int offset = (index - (debug_triangle_count / 2)) * 10;
+      vec2i origin = {80, 80};
+      int half_dim = 35;
+      int offset = index * 10;
 
-      triangle->vertices[0].x = offset + mid.x;
-      triangle->vertices[0].y = offset + mid.y - 100;
+      triangle->vertices[0].x = offset + origin.x;
+      triangle->vertices[0].y = offset + origin.y - half_dim;
 
-      triangle->vertices[1].x = offset + mid.x - 100;
-      triangle->vertices[1].y = offset + mid.y + 100;
+      triangle->vertices[1].x = offset + origin.x - half_dim;
+      triangle->vertices[1].y = offset + origin.y + half_dim;
 
-      triangle->vertices[2].x = offset + mid.x + 100;
-      triangle->vertices[2].y = offset + mid.y + 100;
+      triangle->vertices[2].x = offset + origin.x + half_dim;
+      triangle->vertices[2].y = offset + origin.y + half_dim;
+
+      push_triangle(game, triangle_index);
+   }
+
+   // NOTE: Test basic mesh drawing.
+   mesh_asset mesh = game->debug_mesh;
+   for(int face_index = 0; face_index < mesh.face_count; ++face_index)
+   {
+      mesh_asset_face face = mesh.faces[face_index];
+
+      assert(game->triangle_count < game->triangle_count_max);
+      int triangle_index = game->triangle_count++;
+
+      vec3 offset = {backbuffer.width/2.0f, backbuffer.height/2.0f, 0};
+      float scale = 100.0f;
+
+      render_triangle *triangle = game->triangles + triangle_index;
+      triangle->color = face.color;
+      triangle->vertices[0] = mesh.vertices[face.vertex_indices[0]]*scale + offset;
+      triangle->vertices[1] = mesh.vertices[face.vertex_indices[1]]*scale + offset;
+      triangle->vertices[2] = mesh.vertices[face.vertex_indices[2]]*scale + offset;
 
       push_triangle(game, triangle_index);
    }

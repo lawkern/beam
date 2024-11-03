@@ -22,6 +22,6 @@ struct render_command
 
 struct render_triangle
 {
-   vec2 vertices[3];
+   vec3 vertices[3];
    u32 color;
 };

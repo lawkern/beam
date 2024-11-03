@@ -2,6 +2,8 @@ CFLAGS = -g -std=c++11 -Wall -Wpedantic -Werror
 CFLAGS += -Wno-unused-variable
 CFLAGS += -Wno-unused-function
 CFLAGS += -Wno-writable-strings
+CFLAGS += -Wno-missing-braces
+CFLAGS += -Wno-gnu-anonymous-struct
 
 compile:
 	@mkdir -p build
@@ -13,6 +15,10 @@ compile:
 
 	clang ./src/main_sdl.cpp -O2 -DDEBUG=0 ./build/platform_release.o ./build/game_release.o -o ./build/beam_release $(CFLAGS) `sdl2-config --cflags --libs`
 	clang ./src/main_sdl.cpp -O0 -DDEBUG=1 ./build/platform_debug.o   ./build/game_debug.o   -o ./build/beam_debug   $(CFLAGS) `sdl2-config --cflags --libs`
+
+pack:
+	clang ./src/pack.cpp -o ./build/pack
+	./build/pack cube.obj
 
 run:
 	./build/beam_debug
