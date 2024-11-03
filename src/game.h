@@ -29,6 +29,9 @@ struct game_context
    memarena perma;
    memarena frame;
 
+   vec3 rotation;
+   vec3 translation;
+   vec3 scale;
    mesh_asset debug_mesh;
 
    int triangle_count;

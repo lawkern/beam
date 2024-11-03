@@ -27,5 +27,13 @@ union vec3
 union vec4
 {
    struct {float x, y, z, w;};
+   struct {vec3 xyz; float z_;};
    struct {float r, g, b, a;};
+};
+
+// NOTE: Matrices are stored in row-major order.
+union mat4
+{
+   vec4 rows[4];
+   float e[4][4];
 };

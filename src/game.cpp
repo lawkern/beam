@@ -96,6 +96,25 @@ GAME_UPDATE(game_update)
 
    // NOTE: Test basic mesh drawing.
    mesh_asset mesh = game->debug_mesh;
+
+   game->scale.x = 100.0f;
+   game->scale.y = 100.0f;
+   game->scale.z = 100.0f;
+
+   game->translation.x = backbuffer.width/2.0f;
+   game->translation.y = backbuffer.height/2.0f;
+
+   game->rotation.x += 0.01f;
+   game->rotation.y += 0.01f;
+   game->rotation.z += 0.01f;
+
+   mat4 world = make_identity();
+   world *= make_translation(game->translation.x, game->translation.y, game->translation.z);
+   world *= make_rotationx(game->rotation.x);
+   world *= make_rotationy(game->rotation.y);
+   world *= make_rotationz(game->rotation.z);
+   world *= make_scale(game->scale.x, game->scale.y, game->scale.z);
+
    for(int face_index = 0; face_index < mesh.face_count; ++face_index)
    {
       mesh_asset_face face = mesh.faces[face_index];
@@ -103,14 +122,17 @@ GAME_UPDATE(game_update)
       assert(game->triangle_count < game->triangle_count_max);
       int triangle_index = game->triangle_count++;
 
-      vec3 offset = {backbuffer.width/2.0f, backbuffer.height/2.0f, 0};
-      float scale = 100.0f;
-
       render_triangle *triangle = game->triangles + triangle_index;
       triangle->color = face.color;
-      triangle->vertices[0] = mesh.vertices[face.vertex_indices[0]]*scale + offset;
-      triangle->vertices[1] = mesh.vertices[face.vertex_indices[1]]*scale + offset;
-      triangle->vertices[2] = mesh.vertices[face.vertex_indices[2]]*scale + offset;
+
+      vec3 v0 = mesh.vertices[face.vertex_indices[0]];
+      triangle->vertices[0] = mul(world, v4(v0, 1.0f)).xyz;
+
+      vec3 v1 = mesh.vertices[face.vertex_indices[1]];
+      triangle->vertices[1] = mul(world, v4(v1, 1.0f)).xyz;
+
+      vec3 v2 = mesh.vertices[face.vertex_indices[2]];
+      triangle->vertices[2] = mul(world, v4(v2, 1.0f)).xyz;
 
       push_triangle(game, triangle_index);
    }
