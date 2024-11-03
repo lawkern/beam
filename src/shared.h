@@ -22,3 +22,16 @@ typedef ptrdiff_t memsize;
 
 #define MAXIMUM(a, b) ((a) > (b) ? (a) : (b))
 #define MINIMUM(a, b) ((a) < (b) ? (a) : (b))
+
+// NOTE: Define debuggable assertions based on the compiler being used.
+#define MSVC_ASSERT(expression) do { if(!(expression)) { __debugbreak(); } } while(0)
+#define LLVM_ASSERT(expression) do { if(!(expression)) { __builtin_trap(); } } while(0)
+#define JANK_ASSERT(expression) do { if(!(expression)) { *(volatile int *)0 = 0; } } while(0)
+
+#if defined(_MSC_VER)
+#   define assert MSVC_ASSERT
+#elif defined(__GNUC__) || defined(__clang__)
+#   define assert LLVM_ASSERT
+#else
+#   define assert JANK_ASSERT
+#endif

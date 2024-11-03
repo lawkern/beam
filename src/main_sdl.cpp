@@ -192,7 +192,6 @@ static void sdl_frame_end(sdl_context *sdl)
 #endif
 }
 
-
 int main(int argument_count, char **arguments)
 {
    game_context game = {};
@@ -206,6 +205,7 @@ int main(int argument_count, char **arguments)
       sdl_process_input(&sdl);
 
       game_update(&game);
+      game_render(&game);
 
       sdl_render(&sdl, game.backbuffer);
       sdl_frame_end(&sdl);

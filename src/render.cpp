@@ -2,6 +2,30 @@
 /* (c) copyright 2024 Lawrence D. Kern /////////////////////////////////////// */
 /* /////////////////////////////////////////////////////////////////////////// */
 
+static render_command *push_command(game_context *game, render_command_kind kind)
+{
+   assert(game->render_command_count < game->render_command_count_max);
+
+   render_command *result = game->render_commands + game->render_command_count++;
+   result->kind = kind;
+
+   return(result);
+}
+
+static void push_clear(game_context *game, u32 color)
+{
+   render_command *command = push_command(game, RENDERCOMMAND_CLEAR);
+   command->color = color;
+}
+
+static void push_triangle(game_context *game, int triangle_index)
+{
+   render_command *command = push_command(game, RENDERCOMMAND_TRIANGLE);
+   command->index = triangle_index;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 static void clear(game_texture texture, u32 color)
 {
    for(int y = 0; y < texture.height; ++y)

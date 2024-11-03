@@ -28,6 +28,14 @@ struct game_context
    memarena perma;
    memarena frame;
 
+   int triangle_count;
+   int triangle_count_max;
+   render_triangle *triangles;
+
+   int render_command_count;
+   int render_command_count_max;
+   render_command *render_commands;
+
    bool running;
 };
 
@@ -38,9 +46,12 @@ struct game_context
 // NOTE: Update the game simulation. This should be called once per frame.
 #define GAME_UPDATE(name) void name(game_context *game)
 
+// NOTE: Render any buffered commands. This should be called once per frame.
+#define GAME_RENDER(name) void name(game_context *game)
 
 // NOTE: These expand to forward declarations of the function signatures above,
 // in case the macro expansions are confusing. By convention, game functions
 // begin with the prefix game_.
 GAME_INITIALIZE(game_initialize);
 GAME_UPDATE(game_update);
+GAME_RENDER(game_render);

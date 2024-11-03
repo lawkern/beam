@@ -1,4 +1,4 @@
-CFLAGS = -g -std=c++98 -Wall -Wpedantic -Werror
+CFLAGS = -g -std=c++11 -Wall -Wpedantic -Werror
 CFLAGS += -Wno-unused-variable
 CFLAGS += -Wno-unused-function
 CFLAGS += -Wno-writable-strings
