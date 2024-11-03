@@ -29,29 +29,40 @@ struct game_button
    bool transitioned;
 };
 
+#define GAME_BUTTONS                            \
+   X(action_up)                                 \
+   X(action_down)                               \
+   X(action_left)                               \
+   X(action_right)                              \
+   X(move_up)                                   \
+   X(move_down)                                 \
+   X(move_left)                                 \
+   X(move_right)                                \
+   X(shoulder_left)                             \
+   X(shoulder_right)                            \
+   X(start)                                     \
+   X(back)
+
+enum game_button_kind
+{
+#  define X(button_name) GAME_BUTTON_##button_name,
+   GAME_BUTTONS
+#  undef X
+
+   GAME_BUTTON_COUNT,
+};
+
 struct game_controller
 {
    union
    {
-      game_button buttons[16];
       struct
       {
-         game_button action_up;
-         game_button action_down;
-         game_button action_left;
-         game_button action_right;
-
-         game_button move_up;
-         game_button move_down;
-         game_button move_left;
-         game_button move_right;
-
-         game_button shoulder_left;
-         game_button shoulder_right;
-
-         game_button start;
-         game_button back;
+#        define X(button_name) game_button button_name;
+         GAME_BUTTONS
+#        undef X
       };
+      game_button buttons[GAME_BUTTON_COUNT];
    };
 
    bool connected;

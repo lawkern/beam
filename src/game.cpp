@@ -31,6 +31,21 @@ static bool was_released(game_button button)
    return(result);
 }
 
+static void print_controller_inputs(game_input *input, int controller_index)
+{
+   game_controller *con = input->controllers + controller_index;
+
+#  define X(button_name) if(was_pressed(con->buttons[GAME_BUTTON_##button_name])) \
+      plog("Controller %d pressed %s\n", controller_index, #button_name);
+   GAME_BUTTONS;
+#  undef X
+
+#  define X(button_name) if(was_released(con->buttons[GAME_BUTTON_##button_name])) \
+      plog("Controller %d released %s\n", controller_index, #button_name);
+   GAME_BUTTONS;
+#  undef X
+}
+
 GAME_INITIALIZE(game_initialize)
 {
    // NOTE: Initialize memory.
@@ -111,19 +126,24 @@ GAME_UPDATE(game_update)
    for(int controller_index = 0; controller_index < countof(input->controllers); ++controller_index)
    {
       game_controller *con = input->controllers + controller_index;
-      if(was_pressed(con->back)) game->running = false;
+      if(con->connected)
+      {
+         print_controller_inputs(input, controller_index);
 
-      assert(controller_index < countof(game->entities));
-      entity *e = game->entities + controller_index;
+         if(was_pressed(con->back)) game->running = false;
 
-      vec3 direction = {0, 0, 0};
-      if(is_held(con->move_up))    direction.y -= 1;
-      if(is_held(con->move_down))  direction.y += 1;
-      if(is_held(con->move_left))  direction.x -= 1;
-      if(is_held(con->move_right)) direction.x += 1;
+         assert(controller_index < countof(game->entities));
+         entity *e = game->entities + controller_index;
 
-      vec3 movement = normalize(direction) * delta;
-      e->translation += movement;
+         vec3 direction = {0, 0, 0};
+         if(is_held(con->move_up))    direction.y -= 1;
+         if(is_held(con->move_down))  direction.y += 1;
+         if(is_held(con->move_left))  direction.x -= 1;
+         if(is_held(con->move_right)) direction.x += 1;
+
+         vec3 movement = normalize(direction) * delta;
+         e->translation += movement;
+      }
    }
 
    push_clear(game, 0x333333FF);
@@ -206,7 +226,7 @@ GAME_UPDATE(game_update)
    for(int controller_index = 0; controller_index < countof(input->controllers); ++controller_index)
    {
       game_controller *next = next_input->controllers + controller_index;
-      for(int button_index = 0; button_index < countof(next->buttons); ++button_index)
+      for(int button_index = 0; button_index < GAME_BUTTON_COUNT; ++button_index)
       {
          next->buttons[button_index].transitioned = false;
       }
