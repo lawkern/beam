@@ -49,12 +49,29 @@ GAME_INITIALIZE(game_initialize)
    }
 
    // NOTE: Load assets.
-   game->debug_mesh.vertex_count = countof(cube_vertices);
-   game->debug_mesh.vertices = cube_vertices;
-   game->debug_mesh.texcoord_count = countof(cube_texcoords);
-   game->debug_mesh.texcoords = cube_texcoords;
-   game->debug_mesh.face_count = countof(cube_faces);
-   game->debug_mesh.faces = cube_faces;
+   game->meshes[0].vertex_count = countof(cube_vertices);
+   game->meshes[0].vertices = cube_vertices;
+   game->meshes[0].texcoord_count = countof(cube_texcoords);
+   game->meshes[0].texcoords = cube_texcoords;
+   game->meshes[0].normal_count = countof(cube_normals);
+   game->meshes[0].normals = cube_normals;
+   game->meshes[0].face_count = countof(cube_faces);
+   game->meshes[0].faces = cube_faces;
+
+   // NOTE: Initialize entities.
+   for(int index = 0; index < countof(game->entities); ++index)
+   {
+      entity *e = game->entities + index;
+      e->scale = v3(100.0f, 100.0f, 100.0f);
+
+      vec3 offset = {
+         35.0f * (index - countof(game->entities)/2),
+         20.0f * (index - countof(game->entities)/2),
+         0,
+      };
+
+      e->translation = v3(backbuffer->width, backbuffer->height, 0)*0.5f + offset;
+   }
 
    // NOTE: Initialization was successful.
    game->running = true;
@@ -94,47 +111,45 @@ GAME_UPDATE(game_update)
       push_triangle(game, triangle_index);
    }
 
-   // NOTE: Test basic mesh drawing.
-   mesh_asset mesh = game->debug_mesh;
-
-   game->scale.x = 100.0f;
-   game->scale.y = 100.0f;
-   game->scale.z = 100.0f;
-
-   game->translation.x = backbuffer.width/2.0f;
-   game->translation.y = backbuffer.height/2.0f;
-
-   game->rotation.x += 0.01f;
-   game->rotation.y += 0.01f;
-   game->rotation.z += 0.01f;
-
-   mat4 world = make_identity();
-   world *= make_translation(game->translation.x, game->translation.y, game->translation.z);
-   world *= make_rotationx(game->rotation.x);
-   world *= make_rotationy(game->rotation.y);
-   world *= make_rotationz(game->rotation.z);
-   world *= make_scale(game->scale.x, game->scale.y, game->scale.z);
-
-   for(int face_index = 0; face_index < mesh.face_count; ++face_index)
+   // NOTE: Update entities.
+   for(int entity_index = 0; entity_index < countof(game->entities); ++entity_index)
    {
-      mesh_asset_face face = mesh.faces[face_index];
+      entity *e = game->entities + entity_index;
+      mesh_asset mesh = game->meshes[e->mesh_index];
 
-      assert(game->triangle_count < game->triangle_count_max);
-      int triangle_index = game->triangle_count++;
+      float turns = 0.1f * dt;
+      e->rotation.x += turns;
+      e->rotation.y += turns;
+      e->rotation.z += turns;
 
-      render_triangle *triangle = game->triangles + triangle_index;
-      triangle->color = face.color;
+      mat4 world = make_identity();
+      world *= make_translation(e->translation.x, e->translation.y, e->translation.z);
+      world *= make_rotationx(e->rotation.x);
+      world *= make_rotationy(e->rotation.y);
+      world *= make_rotationz(e->rotation.z);
+      world *= make_scale(e->scale.x, e->scale.y, e->scale.z);
 
-      vec3 v0 = mesh.vertices[face.vertex_indices[0]];
-      triangle->vertices[0] = mul(world, v4(v0, 1.0f)).xyz;
+      for(int face_index = 0; face_index < mesh.face_count; ++face_index)
+      {
+         mesh_asset_face face = mesh.faces[face_index];
 
-      vec3 v1 = mesh.vertices[face.vertex_indices[1]];
-      triangle->vertices[1] = mul(world, v4(v1, 1.0f)).xyz;
+         assert(game->triangle_count < game->triangle_count_max);
+         int triangle_index = game->triangle_count++;
 
-      vec3 v2 = mesh.vertices[face.vertex_indices[2]];
-      triangle->vertices[2] = mul(world, v4(v2, 1.0f)).xyz;
+         render_triangle *triangle = game->triangles + triangle_index;
+         triangle->color = face.color;
 
-      push_triangle(game, triangle_index);
+         vec3 v0 = mesh.vertices[face.vertex_indices[0]];
+         triangle->vertices[0] = mul(world, v4(v0, 1.0f)).xyz;
+
+         vec3 v1 = mesh.vertices[face.vertex_indices[1]];
+         triangle->vertices[1] = mul(world, v4(v1, 1.0f)).xyz;
+
+         vec3 v2 = mesh.vertices[face.vertex_indices[2]];
+         triangle->vertices[2] = mul(world, v4(v2, 1.0f)).xyz;
+
+         push_triangle(game, triangle_index);
+      }
    }
 
    // NOTE: End of frame cleanup.

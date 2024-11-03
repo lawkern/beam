@@ -204,7 +204,7 @@ int main(int argument_count, char **arguments)
    {
       sdl_process_input(&sdl);
 
-      game_update(&game);
+      game_update(&game, sdl.actual_frame_seconds);
       game_render(&game);
 
       sdl_render(&sdl, game.backbuffer);

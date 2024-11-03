@@ -20,7 +20,7 @@ typedef int64_t s64;
 #include <stddef.h>
 typedef ptrdiff_t memsize;
 
-#define countof(array) (sizeof(array) / sizeof((array)[0]))
+#define countof(array) (memsize)(sizeof(array) / sizeof((array)[0]))
 
 #define MAXIMUM(a, b) ((a) > (b) ? (a) : (b))
 #define MINIMUM(a, b) ((a) < (b) ? (a) : (b))

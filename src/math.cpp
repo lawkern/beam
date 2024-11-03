@@ -4,6 +4,46 @@
 
 #include <math.h>
 
+#define TAU32 6.283185f
+
+static float sine(float turns)
+{
+   float result = sinf(TAU32 * turns);
+   return(result);
+}
+
+static float cosine(float turns)
+{
+   float result = cosf(TAU32 * turns);
+   return(result);
+}
+
+static int absolute_value(int value)
+{
+   return abs(value);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+static vec2 v2(float x, float y)
+{
+   vec2 result;
+   result.x = x;
+   result.y = y;
+
+   return(result);
+}
+
+static vec3 v3(float x, float y, float z)
+{
+   vec3 result;
+   result.x = x;
+   result.y = y;
+   result.z = z;
+
+   return(result);
+}
+
 static vec4 v4(vec3 xyz, float w)
 {
    vec4 result;
@@ -30,10 +70,9 @@ static vec3 operator*(vec3 vector, float scalar)
 
    return(result);
 }
-
-static int absolute_value(int value)
+static vec3 operator*(float scalar, vec3 vector)
 {
-   return abs(value);
+   return(vector * scalar);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -74,10 +113,10 @@ static mat4 make_scale(float x, float y, float z)
    return(result);
 }
 
-static mat4 make_rotationx(float angle)
+static mat4 make_rotationx(float turns)
 {
-   float c = cosf(angle);
-   float s = sinf(angle);
+   float c = cosine(turns);
+   float s = sine(turns);
    float n = -s;
 
    mat4 result = {{
@@ -90,10 +129,10 @@ static mat4 make_rotationx(float angle)
    return(result);
 }
 
-static mat4 make_rotationy(float angle)
+static mat4 make_rotationy(float turns)
 {
-   float c = cosf(angle);
-   float s = sinf(angle);
+   float c = cosine(turns);
+   float s = sine(turns);
    float n = -s;
 
    mat4 result = {{
@@ -106,10 +145,10 @@ static mat4 make_rotationy(float angle)
    return(result);
 }
 
-static mat4 make_rotationz(float angle)
+static mat4 make_rotationz(float turns)
 {
-   float c = cosf(angle);
-   float s = sinf(angle);
+   float c = cosine(turns);
+   float s = sine(turns);
    float n = -s;
 
    mat4 result = {{

@@ -11,6 +11,7 @@
 #include "memory.h"
 #include "math.h"
 #include "assets.h"
+#include "entity.h"
 #include "render.h"
 
 #define GAME_TEXTURE_SIZE(t) (sizeof(*((t).memory)) * (t).width * (t).height)
@@ -29,10 +30,8 @@ struct game_context
    memarena perma;
    memarena frame;
 
-   vec3 rotation;
-   vec3 translation;
-   vec3 scale;
-   mesh_asset debug_mesh;
+   entity entities[8];
+   mesh_asset meshes[1];
 
    int triangle_count;
    int triangle_count_max;
@@ -50,7 +49,7 @@ struct game_context
 #define GAME_INITIALIZE(name) void name(game_context *game)
 
 // NOTE: Update the game simulation. This should be called once per frame.
-#define GAME_UPDATE(name) void name(game_context *game)
+#define GAME_UPDATE(name) void name(game_context *game, float dt)
 
 // NOTE: Render any buffered commands. This should be called once per frame.
 #define GAME_RENDER(name) void name(game_context *game)
