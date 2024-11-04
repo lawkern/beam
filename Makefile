@@ -20,5 +20,8 @@ pack:
 	clang ./src/main_pack.cpp -o ./build/pack
 	./build/pack cube.obj
 
+debug:
+	lldb ./build/beam_debug
+
 run:
 	./build/beam_debug

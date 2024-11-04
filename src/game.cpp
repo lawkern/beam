@@ -84,6 +84,14 @@ GAME_INITIALIZE(game_initialize)
       return;
    }
 
+   vec3 eye = {0, 0, 0};
+   vec3 target = {10, 0, 0};
+   vec3 up = {0, 0, 1};
+   game->view = make_lookat(eye, target, up);
+
+   float aspect = (float)backbuffer->width / (float)backbuffer->height;
+   game->projection = make_projection(aspect);
+
    // NOTE: Load assets.
    game->meshes[0].vertex_count = countof(cube_vertices);
    game->meshes[0].vertices = cube_vertices;
@@ -97,15 +105,8 @@ GAME_INITIALIZE(game_initialize)
    // NOTE: Initialize entities.
    for(int index = 0; index < countof(game->entities); ++index)
    {
-      entity *e = game->entities + index;
-      e->scale = 50.0f * v3(1, 1, 1);
-
-      vec3 origin = {0.5f*backbuffer->width, 0.5f*backbuffer->height, 0};
-      e->translation = v3(
-         origin.x + 35.0f*(index - countof(game->entities)/2),
-         origin.y - 20.0f*(index - countof(game->entities)/2),
-         origin.z + 0
-      );
+      game->entities[index].scale = v3(1, 1, 1);
+      game->entities[index].translation = v3(10, 0, 0);
    }
 
    // NOTE: Initialization was successful.
@@ -122,7 +123,7 @@ GAME_UPDATE(game_update)
    memarena *frame = &game->frame;
 
    // NOTE: Handle user input.
-   float delta = dt * 250.0f;
+   float delta = dt * 25.0f;
    for(int controller_index = 0; controller_index < countof(input->controllers); ++controller_index)
    {
       game_controller *con = input->controllers + controller_index;
@@ -136,13 +137,25 @@ GAME_UPDATE(game_update)
          entity *e = game->entities + controller_index;
 
          vec3 direction = {0, 0, 0};
-         if(is_held(con->move_up))    direction.y -= 1;
-         if(is_held(con->move_down))  direction.y += 1;
-         if(is_held(con->move_left))  direction.x -= 1;
-         if(is_held(con->move_right)) direction.x += 1;
+         // NOTE: Move up/down.
+         if(is_held(con->move_up))    direction.z += 1;
+         if(is_held(con->move_down))  direction.z -= 1;
 
-         vec3 movement = normalize(direction) * delta;
-         e->translation += movement;
+         // NOTE: Move left/right.
+         if(is_held(con->move_left))  direction.y += 1;
+         if(is_held(con->move_right)) direction.y -= 1;
+
+         // NOTE: Move forward/back.
+         if(is_held(con->shoulder_left))  direction.x += 1;
+         if(is_held(con->shoulder_right)) direction.x -= 1;
+
+         if(direction.x || direction.y || direction.z)
+         {
+            vec3 movement = normalize(direction) * delta;
+            e->translation += movement;
+         }
+
+         if(was_pressed(con->start)) e->translation = v3(10, 0, 0);
       }
    }
 
@@ -180,17 +193,23 @@ GAME_UPDATE(game_update)
       entity *e = game->entities + entity_index;
       mesh_asset mesh = game->meshes[e->mesh_index];
 
-      float turns = 0.1f * dt;
-      e->rotation.x += turns;
-      e->rotation.y += turns;
-      e->rotation.z += turns;
+      // float turns = 0.1f * dt;
+      // e->rotation.x += turns;
+      // e->rotation.y += turns;
+      // e->rotation.z += turns;
+
+      mat4 translation = make_translation(e->translation.x, e->translation.y, e->translation.z);
+      mat4 rotationx = make_rotationx(e->rotation.x);
+      mat4 rotationy = make_rotationy(e->rotation.y);
+      mat4 rotationz = make_rotationz(e->rotation.z);
+      mat4 scale = make_scale(e->scale.x, e->scale.y, e->scale.z);
 
       mat4 world = make_identity();
-      world *= make_translation(e->translation.x, e->translation.y, e->translation.z);
-      world *= make_rotationx(e->rotation.x);
-      world *= make_rotationy(e->rotation.y);
-      world *= make_rotationz(e->rotation.z);
-      world *= make_scale(e->scale.x, e->scale.y, e->scale.z);
+      world *= scale;
+      world *= rotationx;
+      world *= rotationy;
+      world *= rotationz;
+      world *= translation;
 
       for(int face_index = 0; face_index < mesh.face_count; ++face_index)
       {
@@ -202,14 +221,23 @@ GAME_UPDATE(game_update)
          render_triangle *triangle = game->triangles + triangle_index;
          triangle->color = face.color;
 
-         vec3 v0 = mesh.vertices[face.vertex_indices[0]];
-         triangle->vertices[0] = mul(world, v4(v0, 1.0f)).xyz;
+         for(int vertex_index = 0; vertex_index < 3; ++vertex_index)
+         {
+            vec3 vertex = mesh.vertices[face.vertex_indices[vertex_index]];
+            vertex = world * vertex;
+            vertex = game->view * vertex;
 
-         vec3 v1 = mesh.vertices[face.vertex_indices[1]];
-         triangle->vertices[1] = mul(world, v4(v1, 1.0f)).xyz;
+            vertex = project(game->projection, vertex);
 
-         vec3 v2 = mesh.vertices[face.vertex_indices[2]];
-         triangle->vertices[2] = mul(world, v4(v2, 1.0f)).xyz;
+            // NOTE: Convert to screen coordinates.
+            vertex.x *= (backbuffer.width / 2.0f);
+            vertex.y *= (backbuffer.height / 2.0f);
+
+            vertex.x += (backbuffer.width / 2.0f);
+            vertex.y += (backbuffer.height / 2.0f);
+
+            triangle->vertices[vertex_index] = vertex;
+         }
 
          push_triangle(game, triangle_index);
       }

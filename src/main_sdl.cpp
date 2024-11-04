@@ -342,7 +342,7 @@ static void sdl_frame_end(sdl_context *sdl)
    if((sdl->frame_count % sdl->refresh_rate) == 0)
    {
       float frame_ms = sdl->actual_frame_seconds * 1000.0f;
-      plog("Frame time: % .3fms (Work: % .3fms, Sleep: % 3dms)\n", frame_ms, work_ms, sleep_ms);
+      plog("Frame time: % .3fms (Worked: % .3fms, Requested sleep: % 3dms)\n", frame_ms, work_ms, sleep_ms);
    }
 #endif
 }

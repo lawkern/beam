@@ -60,6 +60,17 @@ static vec3 v3(float x, float y, float z)
    return(result);
 }
 
+static vec4 v4(float x, float y, float z, float w)
+{
+   vec4 result;
+   result.x = x;
+   result.y = y;
+   result.z = z;
+   result.w = w;
+
+   return(result);
+}
+
 static vec4 v4(vec3 xyz, float w)
 {
    vec4 result;
@@ -183,6 +194,22 @@ static vec3 normalize(vec3 v)
    return(result);
 }
 
+static float dot(vec3 a, vec3 b)
+{
+   float result = a.x*b.x + a.y*b.y + a.z*b.z;
+   return(result);
+}
+
+static vec3 cross(vec3 a, vec3 b)
+{
+   vec3 result;
+   result.x = a.y*b.z - a.z*b.y;
+   result.y = a.z*b.x - a.x*b.z;
+   result.z = a.x*b.y - a.y*b.x;
+
+   return(result);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static mat4 make_identity(void)
@@ -269,6 +296,44 @@ static mat4 make_rotationz(float turns)
    return(result);
 }
 
+static mat4 make_lookat(vec3 eye, vec3 target, vec3 up)
+{
+   vec3 f = normalize(target - eye); // forward axis (+x)
+   vec3 r = normalize(cross(f, up)); // right axis (-y)
+   vec3 u = cross(r, f);             // up axis (+z)
+
+   mat4 result = {{
+      {f.x, r.x, u.x, 0},
+      {f.y, r.y, u.y, 0},
+      {f.z, r.z, u.z, 0},
+      {-dot(f, eye), -dot(r, eye), -dot(u, eye), 1},
+   }};
+
+   return(result);
+}
+
+static mat4 make_projection(float aspect_width_over_height)
+{
+   float n = 0.1f;   // near clip distance
+   float f = 100.0f; // far clip distance
+   float focal_length = 3.0f;
+
+   float a = focal_length;
+   float b = aspect_width_over_height * focal_length;
+   float c = (f + n) / (f - n);
+   float d = (2.0f * f * n) / (f - n);
+   float e = -1;
+
+   mat4 result = {{
+      {a, 0, 0, 0},
+      {0, b, 0, 0},
+      {0, 0, c, d},
+      {0, 0, e, 0},
+   }};
+
+   return(result);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static vec4 mul(mat4 m, vec4 v)
@@ -282,6 +347,7 @@ static vec4 mul(mat4 m, vec4 v)
    return(result);
 }
 
+static vec3 operator*(mat4 m, vec3 v) { return mul(m, v4(v, 1.0f)).xyz; }
 static vec4 operator*(mat4 m, vec4 v) { return mul(m, v); }
 
 static mat4 mul(mat4 a, mat4 b)
@@ -302,3 +368,38 @@ static mat4 mul(mat4 a, mat4 b)
 
 static mat4 operator*(mat4 a, mat4 b) { return mul(a, b); }
 static mat4 operator*=(mat4 &a, mat4 b) {a = mul(a, b); return(a);}
+
+vec3 project(mat4 projection, vec3 v)
+{
+   vec4 result = projection * v4(-v.y, v.z, v.x, 1.0f);
+   if(result.w)
+   {
+      result.x /= result.w;
+      result.y /= result.w;
+      result.z /= result.w;
+   }
+   return(result.xyz);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+static void print(vec4 v, char *name = "")
+{
+   plog("%s: {%f %f %f %f}\n", name, v.x, v.y, v.z, v.w);
+}
+
+static void print(vec3 v, char *name = "")
+{
+   plog("%s: {%f %f %f}\n", name, v.x, v.y, v.z);
+}
+
+static void print(mat4 m, char *name = "")
+{
+   if(*name) plog("%s:\n", name);
+
+   plog("|%f %f %f %f|\n", m.e[0][0], m.e[0][1], m.e[0][2], m.e[0][3]);
+   plog("|%f %f %f %f|\n", m.e[1][0], m.e[1][1], m.e[1][2], m.e[1][3]);
+   plog("|%f %f %f %f|\n", m.e[2][0], m.e[2][1], m.e[2][2], m.e[2][3]);
+   plog("|%f %f %f %f|\n", m.e[3][0], m.e[3][1], m.e[3][2], m.e[3][3]);
+   plog("\n");
+}

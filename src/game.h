@@ -88,9 +88,6 @@ struct game_context
    memarena perma;
    memarena frame;
 
-   entity entities[8];
-   mesh_asset meshes[1];
-
    int triangle_count;
    int triangle_count_max;
    render_triangle *triangles;
@@ -98,6 +95,12 @@ struct game_context
    int render_command_count;
    int render_command_count_max;
    render_command *render_commands;
+
+   mat4 view;
+   mat4 projection;
+
+   entity entities[1];
+   mesh_asset meshes[1];
 
    bool running;
 };
