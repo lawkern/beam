@@ -99,7 +99,7 @@ struct game_context
    mat4 view;
    mat4 projection;
 
-   entity entities[1];
+   entity entities[8];
    mesh_asset meshes[1];
 
    bool running;

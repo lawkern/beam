@@ -6,6 +6,8 @@
 
 struct entity
 {
+   vec3 facing_direction;
+
    vec3 rotation;
    vec3 translation;
    vec3 scale;

@@ -84,13 +84,8 @@ GAME_INITIALIZE(game_initialize)
       return;
    }
 
-   vec3 eye = {0, 0, 0};
-   vec3 target = {10, 0, 0};
-   vec3 up = {0, 0, 1};
-   game->view = make_lookat(eye, target, up);
-
    float aspect = (float)backbuffer->width / (float)backbuffer->height;
-   game->projection = make_projection(aspect);
+   game->projection = make_perspective(aspect);
 
    // NOTE: Load assets.
    game->meshes[0].vertex_count = countof(cube_vertices);
@@ -105,8 +100,9 @@ GAME_INITIALIZE(game_initialize)
    // NOTE: Initialize entities.
    for(int index = 0; index < countof(game->entities); ++index)
    {
-      game->entities[index].scale = v3(1, 1, 1);
-      game->entities[index].translation = v3(10, 0, 0);
+      game->entities[index].facing_direction = v3(1, 0, 0);
+      game->entities[index].scale = v3(0.5, 0.5, 0.5);
+      game->entities[index].translation = v3(0, 0, 0);
    }
 
    // NOTE: Initialization was successful.
@@ -123,7 +119,8 @@ GAME_UPDATE(game_update)
    memarena *frame = &game->frame;
 
    // NOTE: Handle user input.
-   float delta = dt * 25.0f;
+   float delta = dt * 20.0f;
+
    for(int controller_index = 0; controller_index < countof(input->controllers); ++controller_index)
    {
       game_controller *con = input->controllers + controller_index;
@@ -136,56 +133,41 @@ GAME_UPDATE(game_update)
          assert(controller_index < countof(game->entities));
          entity *e = game->entities + controller_index;
 
+         if(is_held(con->action_down)) e->translation += (e->facing_direction * delta);
+
          vec3 direction = {0, 0, 0};
-         // NOTE: Move up/down.
-         if(is_held(con->move_up))    direction.z += 1;
-         if(is_held(con->move_down))  direction.z -= 1;
+
+         // NOTE: Move forward/back.
+         if(is_held(con->move_up))    direction.x += 1;
+         if(is_held(con->move_down))  direction.x -= 1;
 
          // NOTE: Move left/right.
          if(is_held(con->move_left))  direction.y += 1;
          if(is_held(con->move_right)) direction.y -= 1;
 
-         // NOTE: Move forward/back.
-         if(is_held(con->shoulder_left))  direction.x += 1;
-         if(is_held(con->shoulder_right)) direction.x -= 1;
+         // NOTE: Move up/down.
+         if(is_held(con->shoulder_left))  direction.z += 1;
+         if(is_held(con->shoulder_right)) direction.z -= 1;
 
          if(direction.x || direction.y || direction.z)
          {
-            vec3 movement = normalize(direction) * delta;
-            e->translation += movement;
+            e->translation += (direction * delta);
+            // game->camera_position += (direction * delta);
          }
 
-         if(was_pressed(con->start)) e->translation = v3(10, 0, 0);
+         if(was_pressed(con->start)) e->translation = v3(0, 0, 0);
       }
    }
 
    push_clear(game, 0x333333FF);
 
    // NOTE: Test basic triangle drawing.
-   int debug_triangle_count = 20;
-   for(int index = 0; index < debug_triangle_count; ++index)
-   {
-      assert(game->triangle_count < game->triangle_count_max);
-      int triangle_index = game->triangle_count++;
+   draw_debug_triangles(game);
 
-      render_triangle *triangle = game->triangles + triangle_index;
-      triangle->color = 0x00FF00FF;
+   entity *player = game->entities + 0;
 
-      vec2i origin = {80, 80};
-      int half_dim = 35;
-      int offset = index * 10;
-
-      triangle->vertices[0].x = offset + origin.x;
-      triangle->vertices[0].y = offset + origin.y - half_dim;
-
-      triangle->vertices[1].x = offset + origin.x - half_dim;
-      triangle->vertices[1].y = offset + origin.y + half_dim;
-
-      triangle->vertices[2].x = offset + origin.x + half_dim;
-      triangle->vertices[2].y = offset + origin.y + half_dim;
-
-      push_triangle(game, triangle_index);
-   }
+   vec3 camera_translation = player->translation + v3(-15, 0, 1);
+   mat4 view = make_translation(-camera_translation.x, -camera_translation.y, -camera_translation.z);
 
    // NOTE: Update entities.
    for(int entity_index = 0; entity_index < countof(game->entities); ++entity_index)
@@ -193,23 +175,18 @@ GAME_UPDATE(game_update)
       entity *e = game->entities + entity_index;
       mesh_asset mesh = game->meshes[e->mesh_index];
 
-      // float turns = 0.1f * dt;
-      // e->rotation.x += turns;
-      // e->rotation.y += turns;
-      // e->rotation.z += turns;
+      float turns = 0.1f * dt;
+      e->rotation.x += turns;
+      e->rotation.y += turns;
+      e->rotation.z += turns;
 
-      mat4 translation = make_translation(e->translation.x, e->translation.y, e->translation.z);
+      mat4 scale = make_scale(e->scale.x, e->scale.y, e->scale.z);
       mat4 rotationx = make_rotationx(e->rotation.x);
       mat4 rotationy = make_rotationy(e->rotation.y);
       mat4 rotationz = make_rotationz(e->rotation.z);
-      mat4 scale = make_scale(e->scale.x, e->scale.y, e->scale.z);
+      mat4 translation = make_translation(e->translation.x, e->translation.y, e->translation.z);
 
-      mat4 world = make_identity();
-      world *= scale;
-      world *= rotationx;
-      world *= rotationy;
-      world *= rotationz;
-      world *= translation;
+      mat4 world = translation * scale * rotationx * rotationy * rotationz;
 
       for(int face_index = 0; face_index < mesh.face_count; ++face_index)
       {
@@ -219,19 +196,20 @@ GAME_UPDATE(game_update)
          int triangle_index = game->triangle_count++;
 
          render_triangle *triangle = game->triangles + triangle_index;
-         triangle->color = face.color;
+         triangle->color = (entity_index == 0) ? 0xFF00FFFF : face.color;
 
          for(int vertex_index = 0; vertex_index < 3; ++vertex_index)
          {
             vec3 vertex = mesh.vertices[face.vertex_indices[vertex_index]];
-            vertex = world * vertex;
-            vertex = game->view * vertex;
+            vertex *= world;
+            vertex *= view;
 
+            // NOTE: Project into clip coordinates.
             vertex = project(game->projection, vertex);
 
             // NOTE: Convert to screen coordinates.
             vertex.x *= (backbuffer.width / 2.0f);
-            vertex.y *= (backbuffer.height / 2.0f);
+            vertex.y *= -(backbuffer.height / 2.0f);
 
             vertex.x += (backbuffer.width / 2.0f);
             vertex.y += (backbuffer.height / 2.0f);

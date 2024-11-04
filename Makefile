@@ -10,11 +10,11 @@ LDFLAGS = -lm
 
 compile:
 	@mkdir -p build
-	clang ./src/game.cpp -O2 -DDEBUG=0 -c -o ./build/game_release.o $(CFLAGS)
-	clang ./src/game.cpp -O0 -DDEBUG=1 -c -o ./build/game_debug.o   $(CFLAGS)
+	clang ./src/game.cpp -o ./build/game_release.o -c -O2 -DDEBUG=0 $(CFLAGS)
+	clang ./src/game.cpp -o ./build/game_debug.o   -c -O0 -DDEBUG=1 $(CFLAGS)
 
-	clang ./src/main_sdl.cpp -O2 -DDEBUG=0 ./build/game_release.o -o ./build/beam_release $(CFLAGS) $(LDFLAGS) `sdl2-config --cflags --libs`
-	clang ./src/main_sdl.cpp -O0 -DDEBUG=1 ./build/game_debug.o   -o ./build/beam_debug   $(CFLAGS) $(LDFLAGS) `sdl2-config --cflags --libs`
+	clang ./src/main_sdl.cpp ./build/game_release.o -o ./build/beam_release -O2 -DDEBUG=0 $(CFLAGS) $(LDFLAGS) `sdl2-config --cflags --libs`
+	clang ./src/main_sdl.cpp ./build/game_debug.o   -o ./build/beam_debug   -O0 -DDEBUG=1 $(CFLAGS) $(LDFLAGS) `sdl2-config --cflags --libs`
 
 pack:
 	clang ./src/main_pack.cpp -o ./build/pack

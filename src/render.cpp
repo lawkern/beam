@@ -138,3 +138,32 @@ static void draw_triangle(game_texture texture, render_triangle triangle)
    draw_line(texture, v1.x, v1.y, v2.x, v2.y, triangle.color);
    draw_line(texture, v2.x, v2.y, v0.x, v0.y, triangle.color);
 }
+
+static void draw_debug_triangles(game_context *game)
+{
+   int debug_triangle_count = 20;
+   for(int index = 0; index < debug_triangle_count; ++index)
+   {
+      assert(game->triangle_count < game->triangle_count_max);
+      int triangle_index = game->triangle_count++;
+
+      render_triangle *triangle = game->triangles + triangle_index;
+      triangle->color = 0x00FF00FF;
+
+      vec2i origin = {80, 80};
+      int half_dim = 35;
+      int offsetx = index * 15;
+      int offsety = 0;
+
+      triangle->vertices[0].x = offsetx + origin.x;
+      triangle->vertices[0].y = offsety + origin.y - half_dim;
+
+      triangle->vertices[1].x = offsetx + origin.x - half_dim;
+      triangle->vertices[1].y = offsety + origin.y + half_dim;
+
+      triangle->vertices[2].x = offsetx + origin.x + half_dim;
+      triangle->vertices[2].y = offsety + origin.y + half_dim;
+
+      push_triangle(game, triangle_index);
+   }
+}

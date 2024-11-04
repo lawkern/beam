@@ -312,7 +312,27 @@ static mat4 make_lookat(vec3 eye, vec3 target, vec3 up)
    return(result);
 }
 
-static mat4 make_projection(float aspect_width_over_height)
+static mat4 make_orthographic(float aspect_width_over_height)
+{
+   float n = 0.1f;   // near clip distance
+   float f = 100.0f; // far clip distance
+
+   float a = 1.0f;
+   float b = aspect_width_over_height;
+   float c = 2.0f / (n - f);
+   float d = (n + f) / (n - f);
+
+   mat4 result = {{
+      {a, 0, 0, 0},
+      {0, b, 0, 0},
+      {0, 0, c, d},
+      {0, 0, 0, 1},
+   }};
+
+   return(result);
+}
+
+static mat4 make_perspective(float aspect_width_over_height)
 {
    float n = 0.1f;   // near clip distance
    float f = 100.0f; // far clip distance
@@ -336,7 +356,7 @@ static mat4 make_projection(float aspect_width_over_height)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static vec4 mul(mat4 m, vec4 v)
+static vec4 operator*(mat4 m, vec4 v)
 {
    vec4 result;
    result.x = m.e[0][0]*v.x + m.e[0][1]*v.y + m.e[0][2]*v.z + m.e[0][3]*v.w;
@@ -347,10 +367,10 @@ static vec4 mul(mat4 m, vec4 v)
    return(result);
 }
 
-static vec3 operator*(mat4 m, vec3 v) { return mul(m, v4(v, 1.0f)).xyz; }
-static vec4 operator*(mat4 m, vec4 v) { return mul(m, v); }
+static vec3 operator*(mat4 m, vec3 v) { return (m * v4(v, 1.0f)).xyz; }
+static vec3 operator*=(vec3 &v, mat4 m) { v = (m * v4(v, 1.0f)).xyz; return(v); }
 
-static mat4 mul(mat4 a, mat4 b)
+static mat4 operator*(mat4 a, mat4 b)
 {
    mat4 result = {};
    for(int row = 0; row < 4; ++row)
@@ -366,19 +386,22 @@ static mat4 mul(mat4 a, mat4 b)
    return(result);
 }
 
-static mat4 operator*(mat4 a, mat4 b) { return mul(a, b); }
-static mat4 operator*=(mat4 &a, mat4 b) {a = mul(a, b); return(a);}
+static mat4 operator*=(mat4 &a, mat4 b) {a = a*b; return(a);}
 
 vec3 project(mat4 projection, vec3 v)
 {
-   vec4 result = projection * v4(-v.y, v.z, v.x, 1.0f);
-   if(result.w)
+   // NOTE: Shuffle vertex coordinates to match the clip space coordinate system
+   // before performing projection.
+   vec4 projected_vertex = projection * v4(v.y, -v.z, v.x, 1.0f);
+   if(projected_vertex.w)
    {
-      result.x /= result.w;
-      result.y /= result.w;
-      result.z /= result.w;
+      projected_vertex.x /= projected_vertex.w;
+      projected_vertex.y /= projected_vertex.w;
+      projected_vertex.z /= projected_vertex.w;
    }
-   return(result.xyz);
+
+   vec3 result = projected_vertex.xyz;
+   return(result);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
