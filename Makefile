@@ -18,7 +18,7 @@ compile:
 
 pack:
 	clang ./src/main_pack.cpp -o ./build/pack
-	./build/pack cube.obj
+	./build/pack cube falcon
 
 debug:
 	lldb ./build/beam_debug

@@ -68,7 +68,7 @@ GAME_INITIALIZE(game_initialize)
    }
 
    // NOTE: Initialize renderer.
-   game->triangle_count_max = 1024;
+   game->triangle_count_max = 1024 * 1024;
    game->triangles = arena_array(&game->perma, render_triangle, game->triangle_count_max);
    if(!game->triangles)
    {
@@ -76,7 +76,7 @@ GAME_INITIALIZE(game_initialize)
       return;
    }
 
-   game->render_command_count_max = 1024;
+   game->render_command_count_max = 1024 * 1024;
    game->render_commands = arena_array(&game->perma, render_command, game->render_command_count_max);
    if(!game->render_commands)
    {
@@ -87,22 +87,33 @@ GAME_INITIALIZE(game_initialize)
    float aspect = (float)backbuffer->width / (float)backbuffer->height;
    game->projection = make_perspective(aspect);
 
-   // NOTE: Load assets.
-   game->meshes[0].vertex_count = countof(cube_vertices);
-   game->meshes[0].vertices = cube_vertices;
-   game->meshes[0].texcoord_count = countof(cube_texcoords);
-   game->meshes[0].texcoords = cube_texcoords;
-   game->meshes[0].normal_count = countof(cube_normals);
-   game->meshes[0].normals = cube_normals;
-   game->meshes[0].face_count = countof(cube_faces);
-   game->meshes[0].faces = cube_faces;
+   // NOTE: Load pre-bundled assets.
+   load_assets(game);
 
    // NOTE: Initialize entities.
-   for(int index = 0; index < countof(game->entities); ++index)
+   int entity_index = 0;
+   for(int index = 0; index < GAMECONTROLLER_COUNT_MAX; ++index)
    {
-      game->entities[index].facing_direction = v3(1, 0, 0);
-      game->entities[index].scale = v3(0.5, 0.5, 0.5);
-      game->entities[index].translation = v3(0, 0, 0);
+      assert(entity_index < countof(game->entities));
+      entity *e = game->entities + entity_index++;
+
+      e->facing_direction = v3(1, 0, 0);
+      e->scale = v3(0.5, 0.5, 0.5);
+      e->translation = v3(0, 0, 0);
+      e->mesh_index = 1;
+   }
+
+   for(int y = -10; y < 10; ++y)
+   {
+      for(int x = 2; x < 7; ++x)
+      {
+         assert(entity_index < countof(game->entities));
+         entity *e = game->entities + entity_index++;
+
+         e->translation = v3(5*x, 5*y, 0);
+         e->scale = v3(0.5, 0.5, 0.5);
+         e->mesh_index = 0;
+      }
    }
 
    // NOTE: Initialization was successful.
@@ -121,17 +132,17 @@ GAME_UPDATE(game_update)
    // NOTE: Handle user input.
    float delta = dt * 20.0f;
 
+   assert(countof(input->controllers) < countof(game->entities));
    for(int controller_index = 0; controller_index < countof(input->controllers); ++controller_index)
    {
       game_controller *con = input->controllers + controller_index;
-      if(controller_index == GAME_CONTROLLER_INDEX_KEYBOARD || con->connected)
+
+      entity *e = game->entities + controller_index;
+      if(controller_index == GAMECONTROLLER_INDEX_KEYBOARD || con->connected)
       {
          print_controller_inputs(input, controller_index);
 
          if(was_pressed(con->back)) game->running = false;
-
-         assert(controller_index < countof(game->entities));
-         entity *e = game->entities + controller_index;
 
          if(is_held(con->action_down)) e->translation += (e->facing_direction * delta);
 
@@ -146,8 +157,12 @@ GAME_UPDATE(game_update)
          if(is_held(con->move_right)) direction.y -= 1;
 
          // NOTE: Move up/down.
-         if(is_held(con->shoulder_left))  direction.z += 1;
-         if(is_held(con->shoulder_right)) direction.z -= 1;
+         // if(is_held(con->shoulder_left))  direction.z += 1;
+         // if(is_held(con->shoulder_right)) direction.z -= 1;
+
+         float turns = 0.1f * dt;
+         if(is_held(con->shoulder_left))  e->rotation.z -= turns;
+         if(is_held(con->shoulder_right)) e->rotation.z -= turns;
 
          if(direction.x || direction.y || direction.z)
          {
@@ -176,9 +191,9 @@ GAME_UPDATE(game_update)
       mesh_asset mesh = game->meshes[e->mesh_index];
 
       float turns = 0.1f * dt;
-      e->rotation.x += turns;
-      e->rotation.y += turns;
-      e->rotation.z += turns;
+      // e->rotation.x += turns;
+      // e->rotation.y += turns;
+      // e->rotation.z += turns;
 
       mat4 scale = make_scale(e->scale.x, e->scale.y, e->scale.z);
       mat4 rotationx = make_rotationx(e->rotation.x);

@@ -21,7 +21,7 @@ struct sdl_context
    SDL_Window *window;
    SDL_Renderer *renderer;
    SDL_Texture *texture;
-   SDL_GameController *controllers[GAME_CONTROLLER_COUNT_MAX];
+   SDL_GameController *controllers[GAMECONTROLLER_COUNT_MAX];
    SDL_DisplayMode display_mode;
 
    bool running;
@@ -110,7 +110,7 @@ static void sdl_connect_controller(sdl_context *sdl, game_input *input)
    // pointer. The indices for sdl->controllers and input->controllers must be
    // manually maintained.
 
-   for(int controller_index = 0; controller_index < GAME_CONTROLLER_COUNT_MAX; ++controller_index)
+   for(int controller_index = 0; controller_index < GAMECONTROLLER_COUNT_MAX; ++controller_index)
    {
       if(sdl->controllers[controller_index] == 0 && SDL_IsGameController(controller_index))
       {
@@ -135,7 +135,7 @@ static void sdl_connect_controller(sdl_context *sdl, game_input *input)
 static void sdl_disconnect_controller(sdl_context *sdl, game_input *input, int controller_index)
 {
    assert(controller_index >= 0);
-   assert(controller_index < GAME_CONTROLLER_COUNT_MAX);
+   assert(controller_index < GAMECONTROLLER_COUNT_MAX);
    assert(sdl->controllers[controller_index]);
 
    SDL_GameControllerClose(sdl->controllers[controller_index]);
@@ -148,9 +148,9 @@ static void sdl_disconnect_controller(sdl_context *sdl, game_input *input, int c
 
 static int sdl_get_controller_index(sdl_context *sdl, SDL_JoystickID id)
 {
-   int result = GAME_CONTROLLER_INDEX_NULL;
+   int result = GAMECONTROLLER_INDEX_NULL;
 
-   for(int controller_index = 0; controller_index < GAME_CONTROLLER_COUNT_MAX; ++controller_index)
+   for(int controller_index = 0; controller_index < GAMECONTROLLER_COUNT_MAX; ++controller_index)
    {
       SDL_GameController *test = sdl->controllers[controller_index];
       if(test)
@@ -186,7 +186,7 @@ static void sdl_process_input(sdl_context *sdl, game_input *input)
 
          case SDL_KEYUP:
          case SDL_KEYDOWN: {
-            game_controller *keyboard = input->controllers + GAME_CONTROLLER_INDEX_KEYBOARD;
+            game_controller *keyboard = input->controllers + GAMECONTROLLER_INDEX_KEYBOARD;
 
             bool pressed = event.type == SDL_KEYDOWN;
             switch(event.key.keysym.sym)
@@ -220,7 +220,7 @@ static void sdl_process_input(sdl_context *sdl, game_input *input)
          case SDL_CONTROLLERBUTTONUP:
          case SDL_CONTROLLERBUTTONDOWN: {
             int controller_index = sdl_get_controller_index(sdl, event.cdevice.which);
-            if(controller_index != GAME_CONTROLLER_INDEX_NULL)
+            if(controller_index != GAMECONTROLLER_INDEX_NULL)
             {
                game_controller *con = input->controllers + controller_index;
 
@@ -252,7 +252,7 @@ static void sdl_process_input(sdl_context *sdl, game_input *input)
 
          case SDL_CONTROLLERDEVICEREMOVED: {
             int controller_index = sdl_get_controller_index(sdl, event.cdevice.which);
-            if(controller_index != GAME_CONTROLLER_INDEX_NULL)
+            if(controller_index != GAMECONTROLLER_INDEX_NULL)
             {
                sdl_disconnect_controller(sdl, input, controller_index);
             }

@@ -29,8 +29,10 @@ struct game_button
    bool transitioned;
 };
 
-#define GAME_CONTROLLER_INDEX_NULL    (-1)
-#define GAME_CONTROLLER_INDEX_KEYBOARD (0)
+
+#define GAMECONTROLLER_INDEX_NULL    (-1)
+#define GAMECONTROLLER_INDEX_KEYBOARD (0)
+#define GAMECONTROLLER_COUNT_MAX      (4)
 
 #define GAME_BUTTONS                            \
    X(action_up)                                 \
@@ -71,11 +73,9 @@ struct game_controller
    bool connected;
 };
 
-#define GAME_CONTROLLER_COUNT_MAX 4
-
 struct game_input
 {
-   game_controller controllers[GAME_CONTROLLER_COUNT_MAX];
+   game_controller controllers[GAMECONTROLLER_COUNT_MAX];
 };
 
 struct game_context
@@ -99,8 +99,8 @@ struct game_context
    mat4 view;
    mat4 projection;
 
-   entity entities[8];
-   mesh_asset meshes[1];
+   entity entities[256];
+   mesh_asset meshes[2];
 
    bool running;
 };

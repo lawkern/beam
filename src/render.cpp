@@ -141,7 +141,7 @@ static void draw_triangle(game_texture texture, render_triangle triangle)
 
 static void draw_debug_triangles(game_context *game)
 {
-   int debug_triangle_count = 20;
+   int debug_triangle_count = 30;
    for(int index = 0; index < debug_triangle_count; ++index)
    {
       assert(game->triangle_count < game->triangle_count_max);
@@ -150,8 +150,8 @@ static void draw_debug_triangles(game_context *game)
       render_triangle *triangle = game->triangles + triangle_index;
       triangle->color = 0x00FF00FF;
 
-      vec2i origin = {80, 80};
-      int half_dim = 35;
+      vec2i origin = {30, 30};
+      int half_dim = 20;
       int offsetx = index * 15;
       int offsety = 0;
 
