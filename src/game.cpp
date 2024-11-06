@@ -49,8 +49,8 @@ static void print_controller_inputs(game_input *input, int controller_index)
 GAME_INITIALIZE(game_initialize)
 {
    // NOTE: Initialize memory.
-   game->perma = arena_new(MEGABYTES(64));
-   game->frame = arena_new(MEGABYTES(64));
+   game->perma = arena_new(MEGABYTES(512 * 4));
+   game->frame = arena_new(MEGABYTES(128));
    if(game->perma.size == 0 || game->frame.size == 0)
    {
       return;
@@ -68,7 +68,7 @@ GAME_INITIALIZE(game_initialize)
    }
 
    // NOTE: Initialize renderer.
-   game->triangle_count_max = 1024 * 1024;
+   game->triangle_count_max = 1024 * 1024 * 8;
    game->triangles = arena_array(&game->perma, render_triangle, game->triangle_count_max);
    if(!game->triangles)
    {
@@ -84,8 +84,15 @@ GAME_INITIALIZE(game_initialize)
       return;
    }
 
-   float aspect = (float)backbuffer->width / (float)backbuffer->height;
-   game->projection = make_perspective(aspect);
+   float aspectx = (float)backbuffer->width / (float)backbuffer->height;
+   float aspecty = (float)backbuffer->height / (float)backbuffer->width;
+
+   float fov = 1.0f / 6.0f; // PI/3
+   float near = 0.1f;
+   float far = 100.0f;
+
+   game->projection = make_perspective(aspectx, near, far);
+   initialize_frustum_planes(aspectx, fov, near, far);
 
    // NOTE: Load pre-bundled assets.
    load_assets(game);
@@ -205,34 +212,45 @@ GAME_UPDATE(game_update)
 
       for(int face_index = 0; face_index < mesh.face_count; ++face_index)
       {
-         mesh_asset_face face = mesh.faces[face_index];
+         render_polygon polygon = make_polygon(&mesh, face_index);
+         // clip_polygon(&polygon);
 
-         assert(game->triangle_count < game->triangle_count_max);
-         int triangle_index = game->triangle_count++;
+         int clip_triangle_count = 0;
+         render_triangle clip_triangles[countof(polygon.vertices)];
+         triangles_from_polygon(&clip_triangle_count, clip_triangles, &polygon);
 
-         render_triangle *triangle = game->triangles + triangle_index;
-         triangle->color = (entity_index == 0) ? 0xFF00FFFF : face.color;
-
-         for(int vertex_index = 0; vertex_index < 3; ++vertex_index)
+         for(int clip_triangle_index = 0; clip_triangle_index < clip_triangle_count; ++clip_triangle_index)
          {
-            vec3 vertex = mesh.vertices[face.vertex_indices[vertex_index]];
-            vertex *= world;
-            vertex *= view;
+            render_triangle *clipped_triangle = clip_triangles + clip_triangle_index;
 
-            // NOTE: Project into clip coordinates.
-            vertex = project(game->projection, vertex);
+            assert(game->triangle_count < game->triangle_count_max);
+            int triangle_index = game->triangle_count++;
 
-            // NOTE: Convert to screen coordinates.
-            vertex.x *= (backbuffer.width / 2.0f);
-            vertex.y *= -(backbuffer.height / 2.0f);
+            render_triangle *triangle = game->triangles + triangle_index;
+            triangle->color = (entity_index == 0) ? 0x3322FFFF : 0x00FF00FF;
 
-            vertex.x += (backbuffer.width / 2.0f);
-            vertex.y += (backbuffer.height / 2.0f);
+            for(int vertex_index = 0; vertex_index < 3; ++vertex_index)
+            {
+               // vec3 vertex = mesh.vertices[face.vertex_indices[vertex_index]];
+               vec3 vertex = clipped_triangle->vertices[vertex_index];
+               vertex *= world;
+               vertex *= view;
 
-            triangle->vertices[vertex_index] = vertex;
+               // NOTE: Project into clip coordinates.
+               vertex = project(game->projection, vertex);
+
+               // NOTE: Convert to screen coordinates.
+               vertex.x *= (backbuffer.width / 2.0f);
+               vertex.y *= -(backbuffer.height / 2.0f);
+
+               vertex.x += (backbuffer.width / 2.0f);
+               vertex.y += (backbuffer.height / 2.0f);
+
+               triangle->vertices[vertex_index] = vertex;
+            }
+
+            push_triangle(game, triangle_index);
          }
-
-         push_triangle(game, triangle_index);
       }
    }
 

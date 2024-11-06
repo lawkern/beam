@@ -27,7 +27,19 @@ static float tangent(float turns)
    float result = tanf(TAU32 * turns);
    return(result);
 }
+
+static float arctangent(float turns)
+{
+   float result = atanf(TAU32 * turns);
+   return(result);
+}
 #undef TAU32
+
+static float lerp(float a, float b, float t)
+{
+   float result = (1.0f - t)*a + t*b;
+   return(result);
+}
 
 static int absolute_value(int value)
 {
@@ -163,6 +175,36 @@ static vec4 operator+=(vec4 &a, vec4 b) { a = a + b; return(a); }
 static vec4 operator-=(vec4 &a, vec4 b) { a = a - b; return(a); }
 static vec4 operator*=(vec4 &v, float s) { v = v * s; return(v); }
 static vec4 operator/=(vec4 &v, float s) { v = v / s; return(v); }
+
+static vec2 lerp(vec2 a, vec2 b, float t)
+{
+   vec2 result;
+   result.x = lerp(a.x, b.x, t);
+   result.y = lerp(a.y, b.y, t);
+
+   return(result);
+}
+
+static vec3 lerp(vec3 a, vec3 b, float t)
+{
+   vec3 result;
+   result.x = lerp(a.x, b.x, t);
+   result.y = lerp(a.y, b.y, t);
+   result.z = lerp(a.z, b.z, t);
+
+   return(result);
+}
+
+static vec4 lerp(vec4 a, vec4 b, float t)
+{
+   vec4 result;
+   result.x = lerp(a.x, b.x, t);
+   result.y = lerp(a.y, b.y, t);
+   result.z = lerp(a.z, b.z, t);
+   result.w = lerp(a.w, b.w, t);
+
+   return(result);
+}
 
 static float length(vec2 v)
 {
@@ -312,10 +354,10 @@ static mat4 make_lookat(vec3 eye, vec3 target, vec3 up)
    return(result);
 }
 
-static mat4 make_orthographic(float aspect_width_over_height)
+static mat4 make_orthographic(float aspect_width_over_height, float near, float far)
 {
-   float n = 0.1f;   // near clip distance
-   float f = 100.0f; // far clip distance
+   float n = near; // near clip distance
+   float f = far;  // far clip distance
 
    float a = 1.0f;
    float b = aspect_width_over_height;
@@ -332,10 +374,10 @@ static mat4 make_orthographic(float aspect_width_over_height)
    return(result);
 }
 
-static mat4 make_perspective(float aspect_width_over_height)
+static mat4 make_perspective(float aspect_width_over_height, float near, float far)
 {
-   float n = 0.1f;   // near clip distance
-   float f = 100.0f; // far clip distance
+   float n = near; // near clip distance
+   float f = far;  // far clip distance
    float focal_length = 3.0f;
 
    float a = focal_length;

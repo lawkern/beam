@@ -23,5 +23,32 @@ struct render_command
 struct render_triangle
 {
    vec3 vertices[3];
+   vec2 texcoords[3];
    u32 color;
+};
+
+struct render_polygon
+{
+   int vertex_count;
+   vec3 vertices[10];
+   vec2 texcoords[10];
+   vec3 normal;
+};
+
+struct plane
+{
+   vec3 point;
+   vec3 normal;
+};
+
+enum
+{
+   FRUSTUMPLANE_LEFT,
+   FRUSTUMPLANE_RIGHT,
+   FRUSTUMPLANE_TOP,
+   FRUSTUMPLANE_BOTTOM,
+   FRUSTUMPLANE_NEAR,
+   FRUSTUMPLANE_FAR,
+
+   FRUSTUMPLANE_COUNT,
 };

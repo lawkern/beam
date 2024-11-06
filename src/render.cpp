@@ -167,3 +167,147 @@ static void draw_debug_triangles(game_context *game)
       push_triangle(game, triangle_index);
    }
 }
+
+static plane gfrustum_planes[FRUSTUMPLANE_COUNT];
+
+void initialize_frustum_planes(float aspect_width_over_height, float fov, float near, float far)
+{
+   float fov_vert = fov;
+   float fov_hori = 2.0f * arctangent(aspect_width_over_height * tangent(fov_vert / 2.0f));
+
+   float ch = cosine(0.5f * fov_hori);
+   float sh = sine(0.5f * fov_hori);
+
+   float cv = cosine(0.5f * fov_vert);
+   float sv = sine(0.5f * fov_vert);
+
+   gfrustum_planes[FRUSTUMPLANE_LEFT].point = v3(0, 0, 0);
+   gfrustum_planes[FRUSTUMPLANE_LEFT].normal = v3(sh, ch, 0);
+
+   gfrustum_planes[FRUSTUMPLANE_RIGHT].point = v3(0, 0, 0);
+   gfrustum_planes[FRUSTUMPLANE_RIGHT].normal = v3(sh, -ch, 0);
+
+   gfrustum_planes[FRUSTUMPLANE_TOP].point = v3(0, 0, 0);
+   gfrustum_planes[FRUSTUMPLANE_TOP].normal = v3(sv, 0, -cv);
+
+   gfrustum_planes[FRUSTUMPLANE_BOTTOM].point = v3(0, 0, 0);
+   gfrustum_planes[FRUSTUMPLANE_BOTTOM].normal = v3(sv, 0, cv);
+
+   gfrustum_planes[FRUSTUMPLANE_NEAR].point = v3(near, 0, 0);
+   gfrustum_planes[FRUSTUMPLANE_NEAR].normal = v3(1, 0, 0);
+
+   gfrustum_planes[FRUSTUMPLANE_FAR].point = v3(far, 0, 0);
+   gfrustum_planes[FRUSTUMPLANE_FAR].normal = v3(-1, 0, 0);
+}
+
+render_polygon make_polygon(mesh_asset *mesh, int face_index)
+{
+   mesh_asset_face face = mesh->faces[face_index];
+
+   render_polygon result = {};
+   result.vertex_count = 3;
+
+   result.vertices[0] = mesh->vertices[face.vertex_indices[0]];
+   result.vertices[1] = mesh->vertices[face.vertex_indices[1]];
+   result.vertices[2] = mesh->vertices[face.vertex_indices[2]];
+
+   result.texcoords[0] = mesh->texcoords[face.texcoord_indices[0]];
+   result.texcoords[1] = mesh->texcoords[face.texcoord_indices[1]];
+   result.texcoords[2] = mesh->texcoords[face.texcoord_indices[2]];
+
+   assert(face.normal_indices[0] == face.normal_indices[1] &&
+          face.normal_indices[0] == face.normal_indices[2]);
+
+   result.normal = mesh->normals[face.normal_indices[0]];
+
+   return(result);
+}
+
+static void clip_polygon_plane(render_polygon *polygon, int plane_index)
+{
+   vec3 plane_point = gfrustum_planes[plane_index].point;
+   vec3 plane_normal = gfrustum_planes[plane_index].normal;
+
+   int inside_count = 0;
+   vec3 inside_vertices[countof(polygon->vertices)];
+   vec2 inside_texcoords[countof(polygon->texcoords)];
+
+   vec3 *current_vertex = polygon->vertices + 0;
+   vec2 *current_texcoord = polygon->texcoords + 0;
+
+   vec3 *previous_vertex = polygon->vertices + (polygon->vertex_count - 1);
+   vec2 *previous_texcoord = polygon->texcoords + (polygon->vertex_count - 1);
+
+   // float current_dot = dot(*current_vertex - plane_point, plane_normal);
+   float previous_dot = dot(*previous_vertex - plane_point, plane_normal);
+
+   while(current_vertex != (polygon->vertices + polygon->vertex_count))
+   {
+      float current_dot = dot(*current_vertex - plane_point, plane_normal);
+
+      if((current_dot * previous_dot) < 0)
+      {
+         float t = previous_dot / (previous_dot - current_dot);
+         vec3 intersection_point = lerp(*previous_vertex, *current_vertex, t);
+         vec2 interpolated_texcoord = lerp(*previous_texcoord, *current_texcoord, t);
+
+         int index = inside_count++;
+         inside_vertices[index] = intersection_point;
+         inside_texcoords[index] = interpolated_texcoord;
+      }
+
+      if(current_dot > 0)
+      {
+         int index = inside_count++;
+         inside_vertices[index] = *current_vertex;
+         inside_texcoords[index] = *current_texcoord;
+      }
+
+      // NOTE: Iterate.
+      previous_dot = current_dot;
+
+      previous_vertex = current_vertex;
+      previous_texcoord = current_texcoord;
+
+      current_vertex++;
+      current_texcoord++;
+   }
+
+   // NOTE: Store new vertices overtop the old set.
+   for(int vertex_index = 0; vertex_index < inside_count; ++vertex_index)
+   {
+      polygon->vertices[vertex_index] = inside_vertices[vertex_index];
+      polygon->texcoords[vertex_index] = inside_texcoords[vertex_index];
+   }
+   polygon->vertex_count = inside_count;
+}
+
+static void clip_polygon(render_polygon *polygon)
+{
+   clip_polygon_plane(polygon, FRUSTUMPLANE_LEFT);
+   clip_polygon_plane(polygon, FRUSTUMPLANE_RIGHT);
+   clip_polygon_plane(polygon, FRUSTUMPLANE_TOP);
+   clip_polygon_plane(polygon, FRUSTUMPLANE_BOTTOM);
+   clip_polygon_plane(polygon, FRUSTUMPLANE_NEAR);
+   clip_polygon_plane(polygon, FRUSTUMPLANE_FAR);
+}
+
+static void triangles_from_polygon(int *triangle_count, render_triangle *triangles, render_polygon *polygon)
+{
+   *triangle_count = polygon->vertex_count - 2;
+
+   for(int vertex_index = 0; vertex_index < *triangle_count; ++vertex_index)
+   {
+      int vertex_index0 = 0;
+      int vertex_index1 = vertex_index + 1;
+      int vertex_index2 = vertex_index + 2;
+
+      triangles[vertex_index].vertices[0] = polygon->vertices[vertex_index0];
+      triangles[vertex_index].vertices[1] = polygon->vertices[vertex_index1];
+      triangles[vertex_index].vertices[2] = polygon->vertices[vertex_index2];
+
+      triangles[vertex_index].texcoords[0] = polygon->texcoords[vertex_index0];
+      triangles[vertex_index].texcoords[1] = polygon->texcoords[vertex_index1];
+      triangles[vertex_index].texcoords[2] = polygon->texcoords[vertex_index2];
+   }
+}
