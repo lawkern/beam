@@ -270,6 +270,9 @@ GAME_UPDATE(game_update)
          next->buttons[button_index].transitioned = false;
       }
    }
+
+   // NOTE: Store data to be delivered to server.
+   game->packet.position = player->translation;
 }
 
 GAME_RENDER(game_render)

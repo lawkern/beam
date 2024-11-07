@@ -12,9 +12,13 @@
 // ensure we get the version SDL2-config picks up, instead of whatever is lying
 // around in PATH.
 #include "SDL.h"
+#include "SDL_net.h"
 
 #include "game.h"
-#include "platform.h"
+#include "platform_sdl.cpp"
+
+#define SERVER_HOST "localhost"
+#define SERVER_PORT 2000
 
 struct sdl_context
 {
@@ -23,6 +27,9 @@ struct sdl_context
    SDL_Texture *texture;
    SDL_GameController *controllers[GAMECONTROLLER_COUNT_MAX];
    SDL_DisplayMode display_mode;
+   UDPsocket socket;
+   IPaddress server_address;
+   UDPpacket *packet;
 
    bool running;
    u64 frequency;
@@ -33,26 +40,6 @@ struct sdl_context
    float target_frame_seconds;
    float actual_frame_seconds;
 };
-
-PLATFORM_LOG(plog)
-{
-   va_list arguments;
-   va_start(arguments, fmt);
-   {
-      SDL_LogMessageV(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, fmt, arguments);
-   }
-   va_end(arguments);
-}
-
-PLATFORM_ALLOCATE(pallocate)
-{
-   return SDL_calloc(1, size);
-}
-
-PLATFORM_DEALLOCATE(pdeallocate)
-{
-   SDL_free(memory);
-}
 
 static void sdl_initialize(sdl_context *sdl, int width, int height)
 {
@@ -99,6 +86,36 @@ static void sdl_initialize(sdl_context *sdl, int width, int height)
 
    plog("Monitor refresh rate: %d\n", sdl->refresh_rate);
    plog("Target frame time: %0.03fms\n", sdl->target_frame_seconds * 1000.0f);
+
+   // NOTE: Initialize netcode.
+   if(SDLNet_Init() == -1)
+   {
+      plog("ERROR: Failed to initialize SDL netcode. %s\n", SDLNet_GetError());
+      return;
+   }
+
+   sdl->socket = SDLNet_UDP_Open(0);
+   if(!sdl->socket)
+   {
+      plog("ERROR: Failed to open UDP socket. %s\n", SDLNet_GetError());
+      SDLNet_Quit();
+      return;
+   }
+
+   if(SDLNet_ResolveHost(&sdl->server_address, SERVER_HOST, SERVER_PORT))
+   {
+      plog("ERROR: Failed to resolve host (%s %d): %s\n", SERVER_HOST, SERVER_PORT, SDLNet_GetError());
+      SDLNet_Quit();
+      return;
+   }
+
+   sdl->packet = SDLNet_AllocPacket(512);
+   if(!sdl->packet)
+   {
+      plog("ERROR: Failed to allocate UDP packet. %s\n", SDLNet_GetError());
+      SDLNet_Quit();
+      return;
+   }
 
    // NOTE: Initialization succeeded, main loop can begin.
    sdl->running = true;
@@ -304,7 +321,7 @@ static void sdl_render(sdl_context *sdl, game_texture backbuffer)
 
 #define ELAPSED_SECONDS(start, end, freq) ((float)((end) - (start)) / (float)(freq))
 
-static void sdl_frame_end(sdl_context *sdl)
+static void sdl_frame_end(sdl_context *sdl, game_packet *packet)
 {
    // NOTE: Compute how much time has elapsed this frame.
    float target = sdl->target_frame_seconds;
@@ -341,8 +358,17 @@ static void sdl_frame_end(sdl_context *sdl)
 #if DEBUG
    if((sdl->frame_count % sdl->refresh_rate) == 0)
    {
-      float frame_ms = sdl->actual_frame_seconds * 1000.0f;
-      plog("Frame time: % .3fms (Worked: % .3fms, Requested sleep: % 3dms)\n", frame_ms, work_ms, sleep_ms);
+      memsize packet_size = sizeof(*packet);
+      memcpy(sdl->packet->data, (void *)packet, packet_size);
+
+      sdl->packet->len = packet_size;
+      sdl->packet->address.host = sdl->server_address.host;
+      sdl->packet->address.port = sdl->server_address.port;
+
+      SDLNet_UDP_Send(sdl->socket, -1, sdl->packet);
+
+      // float frame_ms = sdl->actual_frame_seconds * 1000.0f;
+      // plog("Frame time: % .3fms (Worked: % .3fms, Requested sleep: % 3dms)\n", frame_ms, work_ms, sleep_ms);
    }
 #endif
 }
@@ -363,8 +389,11 @@ int main(int argument_count, char **arguments)
       game_render(&game);
 
       sdl_render(&sdl, game.backbuffer);
-      sdl_frame_end(&sdl);
+      sdl_frame_end(&sdl, &game.packet);
    }
+
+   SDLNet_FreePacket(sdl.packet);
+   SDLNet_Quit();
 
    return(0);
 }

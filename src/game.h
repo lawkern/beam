@@ -78,6 +78,11 @@ struct game_input
    game_controller controllers[GAMECONTROLLER_COUNT_MAX];
 };
 
+struct game_packet
+{
+   vec3 position;
+};
+
 struct game_context
 {
    game_texture backbuffer;
@@ -101,6 +106,8 @@ struct game_context
 
    entity entities[256];
    mesh_asset meshes[2];
+
+   game_packet packet;
 
    bool running;
 };
