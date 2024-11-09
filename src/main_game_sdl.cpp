@@ -321,8 +321,37 @@ static void sdl_render(sdl_context *sdl, game_texture backbuffer)
 
 #define ELAPSED_SECONDS(start, end, freq) ((float)((end) - (start)) / (float)(freq))
 
-static void sdl_frame_end(sdl_context *sdl, game_packet *packet)
+static void sdl_exchange_packets(sdl_context *sdl, game_context *game)
 {
+   memsize packet_size = sizeof(game->packet);
+   SDL_memcpy(sdl->packet->data, (void *)&game->packet, packet_size);
+
+   sdl->packet->len = packet_size;
+   sdl->packet->address.host = sdl->server_address.host;
+   sdl->packet->address.port = sdl->server_address.port;
+
+   SDLNet_UDP_Send(sdl->socket, -1, sdl->packet);
+
+   int packet_count = SDLNet_UDP_Recv(sdl->socket, sdl->packet);
+   if(packet_count == -1)
+   {
+      plog("ERROR: Client failed to receive packet. %s\n", SDLNet_GetError());
+   }
+   else if(packet_count == 1)
+   {
+      game->spacket = *(server_packet *)sdl->packet->data;
+   }
+}
+
+static void sdl_frame_end(sdl_context *sdl, game_context *game)
+{
+   // NOTE: Send this frame's game data to the server and store any response we
+   // get back.
+   if(game->send_packet)
+   {
+      sdl_exchange_packets(sdl, game);
+   }
+
    // NOTE: Compute how much time has elapsed this frame.
    float target = sdl->target_frame_seconds;
    u64 freq = sdl->frequency;
@@ -358,15 +387,6 @@ static void sdl_frame_end(sdl_context *sdl, game_packet *packet)
 #if DEBUG
    if((sdl->frame_count % sdl->refresh_rate) == 0)
    {
-      memsize packet_size = sizeof(*packet);
-      memcpy(sdl->packet->data, (void *)packet, packet_size);
-
-      sdl->packet->len = packet_size;
-      sdl->packet->address.host = sdl->server_address.host;
-      sdl->packet->address.port = sdl->server_address.port;
-
-      SDLNet_UDP_Send(sdl->socket, -1, sdl->packet);
-
       // float frame_ms = sdl->actual_frame_seconds * 1000.0f;
       // plog("Frame time: % .3fms (Worked: % .3fms, Requested sleep: % 3dms)\n", frame_ms, work_ms, sleep_ms);
    }
@@ -389,7 +409,7 @@ int main(int argument_count, char **arguments)
       game_render(&game);
 
       sdl_render(&sdl, game.backbuffer);
-      sdl_frame_end(&sdl, &game.packet);
+      sdl_frame_end(&sdl, &game);
    }
 
    SDLNet_FreePacket(sdl.packet);

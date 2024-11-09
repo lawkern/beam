@@ -9,5 +9,6 @@ might care about include:
 
    make platform # Build all targets from scratch (default)
    make pack     # Build and run asset packer
-   make debug    # Run the debug build under a debugger
-   make run      # Run the debug build from the current shell
+   make run      # Run the game debug build from the current shell
+   make debug    # Run the game debug build under a debugger
+   make serve    # Run the server debug build under a debugger

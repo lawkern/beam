@@ -40,3 +40,4 @@ typedef ptrdiff_t memsize;
 
 #define SERVER_HOST "localhost"
 #define SERVER_PORT 2000
+#define SERVER_PACKET_SIZE 512

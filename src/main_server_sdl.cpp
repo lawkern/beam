@@ -3,8 +3,9 @@
 /* /////////////////////////////////////////////////////////////////////////// */
 
 #include "SDL_net.h"
+
+#include "server.h"
 #include "platform_sdl.cpp"
-#include "game.h"
 
 int main(int argument_count, char **arguments)
 {
@@ -22,7 +23,7 @@ int main(int argument_count, char **arguments)
       return(1);
    }
 
-   UDPpacket *sdl_packet = SDLNet_AllocPacket(512);
+   UDPpacket *sdl_packet = SDLNet_AllocPacket(SERVER_PACKET_SIZE);
    if(!sdl_packet)
    {
       plog("ERROR: Failed to allocate UDP packet. %s\n", SDLNet_GetError());
@@ -30,20 +31,24 @@ int main(int argument_count, char **arguments)
       return(1);
    }
 
-   plog("beam server started on %s:%d.\n", SERVER_HOST, SERVER_PORT);
+   plog("beam server has started on %s:%d.\n", SERVER_HOST, SERVER_PORT);
 
+   server_context server = {};
    while(1)
    {
       if(SDLNet_UDP_Recv(sdl_socket, sdl_packet))
       {
-         game_packet *packet = (game_packet *)sdl_packet->data;
+         game_packet *in = (game_packet *)sdl_packet->data;
+         server_packet out = server_update(&server, in);
 
-         vec3 position = packet->position;
-         plog("Position: {%0.3f, %0.3f, %0.3f}\n", position.x, position.y, position.z);
+         SDL_memcpy(sdl_packet->data, (void *)&out, sizeof(out));
+         sdl_packet->len = sizeof(out);
+
+         SDLNet_UDP_Send(sdl_socket, -1, sdl_packet);
       }
    }
 
-   plog("beam server shut down.\n");
+   plog("beam server has shut down.\n");
 
    SDLNet_FreePacket(sdl_packet);
    SDLNet_Quit();

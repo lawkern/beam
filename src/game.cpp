@@ -7,8 +7,10 @@
 
 #include "memory.cpp"
 #include "math.cpp"
+#include "random.cpp"
 #include "assets.cpp"
 #include "render.cpp"
+#include "entity.cpp"
 
 static bool is_held(game_button button)
 {
@@ -48,6 +50,14 @@ static void print_controller_inputs(game_input *input, int controller_index)
 
 GAME_INITIALIZE(game_initialize)
 {
+   // NOTE: Initialize random entropy.
+   game->entropy = random_seed((u64)game);
+   game->client_id = random_value(&game->entropy);
+
+   // TODO: This is not a particularly smart way to differentiate clients. Using
+   // the game_context pointer as a seed value is also a bit silly.
+   plog("Client ID: %llu\n", game->client_id);
+
    // NOTE: Initialize memory.
    game->perma = arena_new(MEGABYTES(512 * 4));
    game->frame = arena_new(MEGABYTES(128));
@@ -98,30 +108,7 @@ GAME_INITIALIZE(game_initialize)
    load_assets(game);
 
    // NOTE: Initialize entities.
-   int entity_index = 0;
-   for(int index = 0; index < GAMECONTROLLER_COUNT_MAX; ++index)
-   {
-      assert(entity_index < countof(game->entities));
-      entity *e = game->entities + entity_index++;
-
-      e->facing_direction = v3(1, 0, 0);
-      e->scale = v3(0.5, 0.5, 0.5);
-      e->translation = v3(0, 0, 0);
-      e->mesh_index = 1;
-   }
-
-   for(int y = -10; y < 10; ++y)
-   {
-      for(int x = 2; x < 7; ++x)
-      {
-         assert(entity_index < countof(game->entities));
-         entity *e = game->entities + entity_index++;
-
-         e->translation = v3(5*x, 5*y, 0);
-         e->scale = v3(0.5, 0.5, 0.5);
-         e->mesh_index = 0;
-      }
-   }
+   initialize_entities(game);
 
    // NOTE: Initialization was successful.
    game->running = true;
@@ -129,12 +116,15 @@ GAME_INITIALIZE(game_initialize)
 
 GAME_UPDATE(game_update)
 {
+   // NOTE: Set up the frame.
    game_texture backbuffer = game->backbuffer;
    game_input *input = game->inputs + game->input_index++;
    game->input_index %= countof(game->inputs);
 
    memarena *perma = &game->perma;
    memarena *frame = &game->frame;
+
+   push_clear(game, 0x333333FF);
 
    // NOTE: Handle user input.
    float delta = dt * 20.0f;
@@ -147,8 +137,6 @@ GAME_UPDATE(game_update)
       entity *e = game->entities + controller_index;
       if(controller_index == GAMECONTROLLER_INDEX_KEYBOARD || con->connected)
       {
-         print_controller_inputs(input, controller_index);
-
          if(was_pressed(con->back)) game->running = false;
 
          if(is_held(con->action_down)) e->translation += (e->facing_direction * delta);
@@ -173,85 +161,42 @@ GAME_UPDATE(game_update)
 
          if(direction.x || direction.y || direction.z)
          {
+            e->active = true;
             e->translation += (direction * delta);
             // game->camera_position += (direction * delta);
          }
 
-         if(was_pressed(con->start)) e->translation = v3(0, 0, 0);
+         if(was_pressed(con->start)) game->send_packet = !game->send_packet;
       }
    }
-
-   push_clear(game, 0x333333FF);
 
    // NOTE: Test basic triangle drawing.
    draw_debug_triangles(game);
 
    entity *player = game->entities + 0;
-
    vec3 camera_translation = player->translation + v3(-15, 0, 1);
-   mat4 view = make_translation(-camera_translation.x, -camera_translation.y, -camera_translation.z);
+   game->view = make_translation(-camera_translation.x, -camera_translation.y, -camera_translation.z);
 
    // NOTE: Update entities.
-   for(int entity_index = 0; entity_index < countof(game->entities); ++entity_index)
+   if(game->send_packet)
    {
-      entity *e = game->entities + entity_index;
-      mesh_asset mesh = game->meshes[e->mesh_index];
-
-      float turns = 0.1f * dt;
-      // e->rotation.x += turns;
-      // e->rotation.y += turns;
-      // e->rotation.z += turns;
-
-      mat4 scale = make_scale(e->scale.x, e->scale.y, e->scale.z);
-      mat4 rotationx = make_rotationx(e->rotation.x);
-      mat4 rotationy = make_rotationy(e->rotation.y);
-      mat4 rotationz = make_rotationz(e->rotation.z);
-      mat4 translation = make_translation(e->translation.x, e->translation.y, e->translation.z);
-
-      mat4 world = translation * scale * rotationx * rotationy * rotationz;
-
-      for(int face_index = 0; face_index < mesh.face_count; ++face_index)
+      for(int index = 0; index < SERVERPLAYER_COUNT_MAX; ++index)
       {
-         render_polygon polygon = make_polygon(&mesh, face_index);
-         // clip_polygon(&polygon);
-
-         int clip_triangle_count = 0;
-         render_triangle clip_triangles[countof(polygon.vertices)];
-         triangles_from_polygon(&clip_triangle_count, clip_triangles, &polygon);
-
-         for(int clip_triangle_index = 0; clip_triangle_index < clip_triangle_count; ++clip_triangle_index)
+         server_player *opponent = game->spacket.opponents + index;
+         if(opponent->client_id != game->client_id)
          {
-            render_triangle *clipped_triangle = clip_triangles + clip_triangle_index;
-
-            assert(game->triangle_count < game->triangle_count_max);
-            int triangle_index = game->triangle_count++;
-
-            render_triangle *triangle = game->triangles + triangle_index;
-            triangle->color = (entity_index == 0) ? 0x3322FFFF : 0x00FF00FF;
-
-            for(int vertex_index = 0; vertex_index < 3; ++vertex_index)
-            {
-               // vec3 vertex = mesh.vertices[face.vertex_indices[vertex_index]];
-               vec3 vertex = clipped_triangle->vertices[vertex_index];
-               vertex *= world;
-               vertex *= view;
-
-               // NOTE: Project into clip coordinates.
-               vertex = project(game->projection, vertex);
-
-               // NOTE: Convert to screen coordinates.
-               vertex.x *= (backbuffer.width / 2.0f);
-               vertex.y *= -(backbuffer.height / 2.0f);
-
-               vertex.x += (backbuffer.width / 2.0f);
-               vertex.y += (backbuffer.height / 2.0f);
-
-               triangle->vertices[vertex_index] = vertex;
-            }
-
-            push_triangle(game, triangle_index);
+            // TODO: Stop relying on hard-coded offsets to determine the type of
+            // entity we're looking at.
+            entity *opponent_entity = game->entities + GAMECONTROLLER_COUNT_MAX + index;
+            opponent_entity->active = true;
+            opponent_entity->translation = opponent->position;
          }
       }
+   }
+
+   for(int entity_index = 0; entity_index < countof(game->entities); ++entity_index)
+   {
+      update_entity(game, entity_index, backbuffer);
    }
 
    // NOTE: End of frame cleanup.
@@ -272,7 +217,11 @@ GAME_UPDATE(game_update)
    }
 
    // NOTE: Store data to be delivered to server.
-   game->packet.position = player->translation;
+   if(game->send_packet)
+   {
+      game->packet.client_id = game->client_id;
+      game->packet.position = player->translation;
+   }
 }
 
 GAME_RENDER(game_render)

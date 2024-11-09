@@ -10,6 +10,7 @@
 #include "shared.h"
 #include "memory.h"
 #include "math.h"
+#include "random.h"
 #include "assets.h"
 #include "entity.h"
 #include "render.h"
@@ -80,7 +81,21 @@ struct game_input
 
 struct game_packet
 {
+   u64 client_id;
    vec3 position;
+};
+
+struct server_player
+{
+   u64 client_id;
+   vec3 position;
+};
+
+#define SERVERPLAYER_COUNT_MAX 32
+struct server_packet
+{
+   int opponent_count;
+   server_player opponents[SERVERPLAYER_COUNT_MAX - GAMECONTROLLER_COUNT_MAX];
 };
 
 struct game_context
@@ -92,6 +107,9 @@ struct game_context
 
    memarena perma;
    memarena frame;
+
+   random_entropy entropy;
+   u64 client_id;
 
    int triangle_count;
    int triangle_count_max;
@@ -107,7 +125,9 @@ struct game_context
    entity entities[256];
    mesh_asset meshes[2];
 
+   bool send_packet;
    game_packet packet;
+   server_packet spacket;
 
    bool running;
 };

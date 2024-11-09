@@ -14,6 +14,9 @@ platform: game server
 	$(CC) ./src/main_game_sdl.cpp ./build/game_release.o -o ./build/beam_release -O2 -DDEBUG=0 $(SDL_CFLAGS) $(SDL_LDFLAGS) $(SDL_LDLIBS)
 	$(CC) ./src/main_game_sdl.cpp ./build/game_debug.o   -o ./build/beam_debug   -O0 -DDEBUG=1 $(SDL_CFLAGS) $(SDL_LDFLAGS) $(SDL_LDLIBS)
 
+	$(CC) ./src/main_server_sdl.cpp ./build/server_release.o -o ./build/beam_server_release -O2 -DDEBUG=0 $(SDL_CFLAGS) $(SDL_LDFLAGS) $(SDL_LDLIBS)
+	$(CC) ./src/main_server_sdl.cpp ./build/server_debug.o   -o ./build/beam_server_debug   -O0 -DDEBUG=1 $(SDL_CFLAGS) $(SDL_LDFLAGS) $(SDL_LDLIBS)
+
 game:
 	@mkdir -p ./build
 	$(CC) ./src/game.cpp -o ./build/game_release.o -c -O2 -DDEBUG=0 $(CFLAGS)
@@ -21,13 +24,16 @@ game:
 
 server:
 	@mkdir -p ./build
-	$(CC) ./src/main_server_sdl.cpp -o ./build/server_release -O2 -DDEBUG=0 $(SDL_CFLAGS) $(SDL_LDFLAGS) $(SDL_LDLIBS)
-	$(CC) ./src/main_server_sdl.cpp -o ./build/server_debug   -O0 -DDEBUG=1 $(SDL_CFLAGS) $(SDL_LDFLAGS) $(SDL_LDLIBS)
+	$(CC) ./src/server.cpp -o ./build/server_release.o -c -O2 -DDEBUG=0 $(CFLAGS)
+	$(CC) ./src/server.cpp -o ./build/server_debug.o   -c -O0 -DDEBUG=1 $(CFLAGS)
 
 pack:
 	@mkdir -p ./build
 	$(CC) ./src/main_packer.cpp -o ./build/packer
-	./build/pack cube falcon
+	./build/packer cube falcon
+
+serve:
+	$(DBG) ./build/beam_server_debug
 
 debug:
 	$(DBG) ./build/beam_debug
