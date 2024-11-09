@@ -26,7 +26,7 @@ server:
 
 pack:
 	@mkdir -p ./build
-	$(CC) ./src/main_pack.cpp -o ./build/pack
+	$(CC) ./src/main_packer.cpp -o ./build/packer
 	./build/pack cube falcon
 
 debug:
