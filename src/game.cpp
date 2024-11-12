@@ -244,6 +244,14 @@ GAME_RENDER(game_render)
       }
    }
 
+   vec2i v0 = {10, 10};
+   vec2i v1 = {100, 100};
+   vec2i v2 = {10, 100};
+   vec2i v3 = {100, 10};
+
+   draw_filled_triangle(backbuffer, v0, v1, v2, 0xFFFFFFFF);
+   draw_filled_triangle(backbuffer, v0, v3, v1, 0x55FFFFFF);
+
    // NOTE: Clear this frame's renderer state.
    game->render_command_count = 0;
    game->triangle_count = 0;

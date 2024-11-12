@@ -92,6 +92,27 @@ static vec4 v4(vec3 xyz, float w)
    return(result);
 }
 
+static vec2i operator+(vec2i a, vec2i b)
+{
+   vec2i result = {a.x + b.x, a.y + b.y};
+   return(result);
+}
+static vec2i operator-(vec2i a, vec2i b)
+{
+   vec2i result = {a.x - b.x, a.y - b.y};
+   return(result);
+}
+static vec2i operator*(vec2i v, int s)
+{
+   vec2i result = {s*v.x, s*v.y};
+   return(result);
+}
+static vec2i operator/(vec2i v, int s)
+{
+   vec2i result = {v.x/s, v.y/s};
+   return(result);
+}
+
 static vec2 operator+(vec2 a, vec2 b)
 {
    vec2 result = {a.x + b.x, a.y + b.y};

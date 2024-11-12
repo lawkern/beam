@@ -26,6 +26,16 @@ static void push_triangle(game_context *game, int triangle_index)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static void draw_pixel_safely(game_texture texture, int x, int y, u32 color)
+{
+   // NOTE: This is super slow! We can do better testing for valid pixels.
+
+   if(x >= 0 && x < texture.width && y >= 0 && y < texture.height)
+   {
+      texture.memory[texture.width*y + x] = color;
+   }
+}
+
 static void clear(game_texture texture, u32 color)
 {
    for(int y = 0; y < texture.height; ++y)
@@ -53,7 +63,7 @@ static void draw_line_up(game_texture texture, int x0, int y0, int x1, int y1, u
 
    for(int y = y0; y <= y1; ++y)
    {
-      texture.memory[texture.width*y + x] = color;
+      draw_pixel_safely(texture, x, y, color);
 
       if(difference > 0)
       {
@@ -83,7 +93,7 @@ static void draw_line_down(game_texture texture, int x0, int y0, int x1, int y1,
 
    for(int x = x0; x <= x1; ++x)
    {
-      texture.memory[texture.width*y + x] = color;
+      draw_pixel_safely(texture, x, y, color);
 
       if(difference > 0)
       {
@@ -99,37 +109,128 @@ static void draw_line_down(game_texture texture, int x0, int y0, int x1, int y1,
 
 static void draw_line(game_texture texture, int x0, int y0, int x1, int y1, u32 color)
 {
-   x0 = MINIMUM(MAXIMUM(x0, 0), texture.width - 1);
-   y0 = MINIMUM(MAXIMUM(y0, 0), texture.height - 1);
-   x1 = MINIMUM(MAXIMUM(x1, 0), texture.width - 1);
-   y1 = MINIMUM(MAXIMUM(y1, 0), texture.height - 1);
+   // x0 = MINIMUM(MAXIMUM(x0, 0), texture.width - 1);
+   // y0 = MINIMUM(MAXIMUM(y0, 0), texture.height - 1);
+   // x1 = MINIMUM(MAXIMUM(x1, 0), texture.width - 1);
+   // y1 = MINIMUM(MAXIMUM(y1, 0), texture.height - 1);
 
-   if(absolute_value(y1 - y0) < absolute_value(x1 - x0))
+   int xmin = MINIMUM(x0, x1);
+   int ymin = MINIMUM(y0, y1);
+
+   int xmax = MAXIMUM(x0, x1);
+   int ymax = MAXIMUM(y0, y1);
+
+   if(xmax >= 0 && ymax >= 0 && xmin < texture.width && ymin < texture.height)
    {
-      if(x0 > x1)
+      if(absolute_value(y1 - y0) < absolute_value(x1 - x0))
       {
-         draw_line_down(texture, x1, y1, x0, y0, color);
+         if(x0 > x1)
+         {
+            draw_line_down(texture, x1, y1, x0, y0, color);
+         }
+         else
+         {
+            draw_line_down(texture, x0, y0, x1, y1, color);
+         }
       }
       else
       {
-         draw_line_down(texture, x0, y0, x1, y1, color);
+         if(y0 > y1)
+         {
+            draw_line_up(texture, x1, y1, x0, y0, color);
+         }
+         else
+         {
+            draw_line_up(texture, x0, y0, x1, y1, color);
+         }
       }
    }
-   else
+}
+
+static int orient2d(vec2i a, vec2i b, vec2i c)
+{
+   int result = (b.x - a.x)*(c.y - a.y) - (b.y - a.y)*(c.x - a.x);
+   return(result);
+}
+
+static bool is_top_left(vec2i start, vec2i end)
+{
+   vec2i edge = end - start;
+
+   bool is_top_edge = (edge.y == 0 && edge.x < 0);
+   bool is_left_edge = (edge.y < 0);
+
+   return(is_top_edge || is_left_edge);
+}
+
+#include <arm_neon.h>
+
+static void draw_filled_triangle(game_texture texture, vec2i v0, vec2i v1, vec2i v2, u32 color)
+{
+   //NOTE: Compute bounding box.
+   int xmin = MINIMUM(MINIMUM(v0.x, v1.x), v2.x);
+   int ymin = MINIMUM(MINIMUM(v0.y, v1.y), v2.y);
+
+   int xmax = MAXIMUM(MAXIMUM(v0.x, v1.x), v2.x);
+   int ymax = MAXIMUM(MAXIMUM(v0.y, v1.y), v2.y);
+
+   // NOTE: Clips against the screen boundaries.
+   xmin = MAXIMUM(xmin, 0);
+   ymin = MAXIMUM(ymin, 0);
+
+   xmax = MINIMUM(xmax, texture.width - 1);
+   ymax = MINIMUM(ymax, texture.height - 1);
+
+   // NOTE: Compute fill rule biases.
+   int bias0 = is_top_left(v1, v2) ? 0 : -1;
+   int bias1 = is_top_left(v2, v0) ? 0 : -1;
+   int bias2 = is_top_left(v0, v1) ? 0 : -1;
+
+   // NOTE: Setup up triangle computations.
+   int a01 = v0.y - v1.y;
+   int b01 = v1.x - v0.x;
+
+   int a12 = v1.y - v2.y;
+   int b12 = v2.x - v1.x;
+
+   int a20 = v2.y - v0.y;
+   int b20 = v0.x - v2.x;
+
+   vec2i point = {xmin, ymin};
+   int w0_row = orient2d(v1, v2, point) + bias0;
+   int w1_row = orient2d(v2, v0, point) + bias1;
+   int w2_row = orient2d(v0, v1, point) + bias2;
+
+   // TODO: Subpixel precision/correction.
+
+   // NOTE: Rasterize.
+   for(point.y = ymin; point.y <= ymax; point.y++)
    {
-      if(y0 > y1)
+      int w0 = w0_row;
+      int w1 = w1_row;
+      int w2 = w2_row;
+
+      for(point.x = xmin; point.x <= xmax; point.x++)
       {
-         draw_line_up(texture, x1, y1, x0, y0, color);
+         if((w0 | w1 | w2) >= 0)
+         {
+            texture.memory[texture.width*point.y + point.x] = color;
+         }
+
+         w0 += a12;
+         w1 += a20;
+         w2 += a01;
       }
-      else
-      {
-         draw_line_up(texture, x0, y0, x1, y1, color);
-      }
+
+      w0_row += b12;
+      w1_row += b20;
+      w2_row += b01;
    }
 }
 
 static void draw_triangle(game_texture texture, render_triangle triangle)
 {
+#if 0
    vec2 v0 = triangle.vertices[0].xy;
    vec2 v1 = triangle.vertices[1].xy;
    vec2 v2 = triangle.vertices[2].xy;
@@ -137,6 +238,13 @@ static void draw_triangle(game_texture texture, render_triangle triangle)
    draw_line(texture, v0.x, v0.y, v1.x, v1.y, triangle.color);
    draw_line(texture, v1.x, v1.y, v2.x, v2.y, triangle.color);
    draw_line(texture, v2.x, v2.y, v0.x, v0.y, triangle.color);
+#else
+   vec2i v0 = {(int)triangle.vertices[0].x, (int)triangle.vertices[0].y};
+   vec2i v1 = {(int)triangle.vertices[1].x, (int)triangle.vertices[1].y};
+   vec2i v2 = {(int)triangle.vertices[2].x, (int)triangle.vertices[2].y};
+
+   draw_filled_triangle(texture, v0, v1, v2, triangle.color);
+#endif
 }
 
 static void draw_debug_triangles(game_context *game)
