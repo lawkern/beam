@@ -29,7 +29,7 @@ server:
 
 pack:
 	@mkdir -p ./build
-	$(CC) ./src/main_packer.cpp -o ./build/packer
+	$(CC) ./src/main_packer.cpp $(CFLAGS) -o ./build/packer
 	./build/packer cube falcon
 
 serve:

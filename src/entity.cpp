@@ -76,7 +76,7 @@ static void update_entity(game_context *game, int entity_index, game_texture bac
             int triangle_index = game->triangle_count++;
 
             render_triangle *triangle = game->triangles + triangle_index;
-            triangle->color = (entity_index == 0) ? 0x3322FFFF : 0x00FF00FF;
+            triangle->color = mesh.faces[face_index].color;
 
             for(int vertex_index = 0; vertex_index < 3; ++vertex_index)
             {
