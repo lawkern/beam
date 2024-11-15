@@ -14,9 +14,3 @@ struct memarena
    memsize size;
    memsize used;
 };
-
-struct memmarker
-{
-   memarena *arena;
-   memsize used;
-};

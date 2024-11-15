@@ -43,23 +43,3 @@ static void arena_reset(memarena *arena)
 {
    arena->used = 0;
 }
-
-// arena_marker_push stores the current state of a given arena.
-// It can be used in conjuction with arena_marker_pop to perform temporary
-// allocations.
-static memmarker arena_marker_push(memarena *arena)
-{
-   memmarker result = {};
-   result.arena = arena;
-   result.used = arena->used;
-
-   return(result);
-}
-
-// arena_marker_push restores a previously-saved state of a given arena.
-// It can be used in conjuction with arena_marker_push to perform temporary
-// allocations.
-static void arena_marker_pop(memmarker *marker)
-{
-   marker->arena->used = marker->used;
-}
