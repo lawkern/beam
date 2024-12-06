@@ -1,7 +1,7 @@
 CC = clang
 DBG = lldb
 
-CFLAGS = -g -std=c++11 -Wall -Wpedantic -Werror -Wno-unused-variable -Wno-unused-function -Wno-writable-strings -Wno-missing-braces -Wno-nested-anon-types -Wno-gnu-anonymous-struct
+CFLAGS = -g -std=c++11 -fno-exceptions -Wall -Wpedantic -Werror -Wno-unused-variable -Wno-unused-function -Wno-writable-strings -Wno-missing-braces -Wno-nested-anon-types -Wno-gnu-anonymous-struct
 LDFLAGS =
 LDLIBS = -lm
 
