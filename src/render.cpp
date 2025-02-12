@@ -163,8 +163,6 @@ static bool is_top_left(vec2i start, vec2i end)
    return(is_top_edge || is_left_edge);
 }
 
-#include <arm_neon.h>
-
 static void draw_filled_triangle(game_texture texture, vec2i v0, vec2i v1, vec2i v2, u32 color)
 {
    //NOTE: Compute bounding box.

@@ -8,28 +8,31 @@
 // support SDL. It may be superceded by dedicated main_*.cpp files in the
 // future, e.g. main_win32.cpp, main_macos.cpp, etc.
 
-// NOTE: The SDL header is included using quotes instead of angle brackets to
-// ensure we get the version SDL2-config picks up, instead of whatever is lying
-// around in PATH.
-#include "SDL.h"
-#include "SDL_net.h"
+#include "SDL3/SDL.h"
 
 #include "game.h"
 #include "platform_sdl.cpp"
 
-#define SERVER_HOST "localhost"
-#define SERVER_PORT 2000
+#define NETWORKING_SUPPORTED 0
+
+#if NETWORKING_SUPPORTED
+#   define SERVER_HOST "localhost"
+#   define SERVER_PORT 2000
+#endif
 
 struct sdl_context
 {
    SDL_Window *window;
    SDL_Renderer *renderer;
    SDL_Texture *texture;
-   SDL_GameController *controllers[GAMECONTROLLER_COUNT_MAX];
+   SDL_Gamepad *controllers[GAMECONTROLLER_COUNT_MAX];
    SDL_DisplayMode display_mode;
+
+#if NETWORKING_SUPPORTED
    UDPsocket socket;
    IPaddress server_address;
    UDPpacket *packet;
+#endif
 
    bool running;
    u64 frequency;
@@ -43,20 +46,21 @@ struct sdl_context
 
 static void sdl_initialize(sdl_context *sdl, int width, int height)
 {
-   SDL_Init(SDL_INIT_EVERYTHING);
-
-   sdl->window = SDL_CreateWindow(TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
-   if(!sdl->window)
+   if(!SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMEPAD))
    {
-      plog("ERROR: Failed to create SDL window.\n");
+      plog("ERROR: Failed to initialize SDL3.");
       return;
    }
 
-   sdl->renderer = SDL_CreateRenderer(sdl->window, -1, SDL_RENDERER_PRESENTVSYNC);
-   if(!sdl->renderer)
+   if(!SDL_CreateWindowAndRenderer(TITLE, width, height, 0, &sdl->window, &sdl->renderer))
    {
-      plog("ERROR: Failed to create SDL renderer.\n");
+      plog("ERROR: Failed to create window/renderer.");
       return;
+   }
+
+   if(!SDL_SetRenderVSync(sdl->renderer, 1))
+   {
+      SDL_Log("WARNING: Failed to set vsync.");
    }
 
    sdl->texture = SDL_CreateTexture(sdl->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width, height);
@@ -67,26 +71,28 @@ static void sdl_initialize(sdl_context *sdl, int width, int height)
    }
 
    // TODO: Handle multiple monitors properly.
-   if(SDL_GetDesktopDisplayMode(0, &sdl->display_mode))
-   {
-      plog("ERROR: Failed to query desktop display mode.\n");
-      return;
-   }
+   // sdl->display_mode = SDL_GetDesktopDisplayMode(0);
+   // if(!sdl->display_mode)
+   // {
+   //    plog("ERROR: Failed to query desktop display mode.\n");
+   //    return;
+   // }
 
    // NOTE: Initialize frame information.
    sdl->frequency = SDL_GetPerformanceFrequency();
 
    sdl->refresh_rate = 60;
-   if(sdl->display_mode.refresh_rate > 0)
-   {
-      sdl->refresh_rate = sdl->display_mode.refresh_rate;
-   }
+   // if(sdl->display_mode.refresh_rate > 0)
+   // {
+   //    sdl->refresh_rate = sdl->display_mode.refresh_rate;
+   // }
 
    sdl->target_frame_seconds = 1.0f / sdl->refresh_rate;
 
    plog("Monitor refresh rate: %d\n", sdl->refresh_rate);
    plog("Target frame time: %0.03fms\n", sdl->target_frame_seconds * 1000.0f);
 
+#if NETWORKING_SUPPORTED
    // NOTE: Initialize netcode.
    if(SDLNet_Init() == -1)
    {
@@ -116,6 +122,7 @@ static void sdl_initialize(sdl_context *sdl, int width, int height)
       SDLNet_Quit();
       return;
    }
+#endif
 
    // NOTE: Initialization succeeded, main loop can begin.
    sdl->running = true;
@@ -129,9 +136,9 @@ static void sdl_connect_controller(sdl_context *sdl, game_input *input)
 
    for(int controller_index = 0; controller_index < GAMECONTROLLER_COUNT_MAX; ++controller_index)
    {
-      if(sdl->controllers[controller_index] == 0 && SDL_IsGameController(controller_index))
+      if(sdl->controllers[controller_index] == 0 && SDL_IsGamepad(controller_index))
       {
-         sdl->controllers[controller_index] = SDL_GameControllerOpen(controller_index);
+         sdl->controllers[controller_index] = SDL_OpenGamepad(controller_index);
          if(sdl->controllers[controller_index])
          {
             input->controllers[controller_index].connected = true;
@@ -155,7 +162,7 @@ static void sdl_disconnect_controller(sdl_context *sdl, game_input *input, int c
    assert(controller_index < GAMECONTROLLER_COUNT_MAX);
    assert(sdl->controllers[controller_index]);
 
-   SDL_GameControllerClose(sdl->controllers[controller_index]);
+   SDL_CloseGamepad(sdl->controllers[controller_index]);
 
    sdl->controllers[controller_index] = 0;
    input->controllers[controller_index].connected = false;
@@ -169,11 +176,11 @@ static int sdl_get_controller_index(sdl_context *sdl, SDL_JoystickID id)
 
    for(int controller_index = 0; controller_index < GAMECONTROLLER_COUNT_MAX; ++controller_index)
    {
-      SDL_GameController *test = sdl->controllers[controller_index];
+      SDL_Gamepad *test = sdl->controllers[controller_index];
       if(test)
       {
-         SDL_Joystick *joystick = SDL_GameControllerGetJoystick(test);
-         if(id == SDL_JoystickInstanceID(joystick))
+         SDL_Joystick *joystick = SDL_GetGamepadJoystick(test);
+         if(id == SDL_GetJoystickID(joystick))
          {
             result = controller_index;
             break;
@@ -197,77 +204,77 @@ static void sdl_process_input(sdl_context *sdl, game_input *input)
    {
       switch(event.type)
       {
-         case SDL_QUIT: {
+         case SDL_EVENT_QUIT: {
             sdl->running = false;
          } break;
 
-         case SDL_KEYUP:
-         case SDL_KEYDOWN: {
+         case SDL_EVENT_KEY_UP:
+         case SDL_EVENT_KEY_DOWN: {
             game_controller *keyboard = input->controllers + GAMECONTROLLER_INDEX_KEYBOARD;
 
-            bool pressed = event.type == SDL_KEYDOWN;
-            switch(event.key.keysym.sym)
+            bool pressed = event.key.down;
+            switch(event.key.key)
             {
                case SDLK_ESCAPE: {sdl->running = false;} break;
-               case SDLK_f: {
+               case SDLK_F: {
                   if(pressed)
                   {
-                     bool is_fullscreen = (SDL_GetWindowFlags(sdl->window) & SDL_WINDOW_FULLSCREEN_DESKTOP);
-                     SDL_SetWindowFullscreen(sdl->window, is_fullscreen ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+                     bool is_fullscreen = (SDL_GetWindowFlags(sdl->window) & SDL_WINDOW_FULLSCREEN);
+                     SDL_SetWindowFullscreen(sdl->window, is_fullscreen ? 0 : SDL_WINDOW_FULLSCREEN);
                   }
                } break;
 
-               case SDLK_i: {sdl_process_button(&keyboard->action_up, pressed);} break;
-               case SDLK_k: {sdl_process_button(&keyboard->action_down, pressed);} break;
-               case SDLK_j: {sdl_process_button(&keyboard->action_left, pressed);} break;
-               case SDLK_l: {sdl_process_button(&keyboard->action_right, pressed);} break;
+               case SDLK_I: {sdl_process_button(&keyboard->action_up, pressed);} break;
+               case SDLK_K: {sdl_process_button(&keyboard->action_down, pressed);} break;
+               case SDLK_J: {sdl_process_button(&keyboard->action_left, pressed);} break;
+               case SDLK_L: {sdl_process_button(&keyboard->action_right, pressed);} break;
 
-               case SDLK_w: {sdl_process_button(&keyboard->move_up, pressed);} break;
-               case SDLK_s: {sdl_process_button(&keyboard->move_down, pressed);} break;
-               case SDLK_a: {sdl_process_button(&keyboard->move_left, pressed);} break;
-               case SDLK_d: {sdl_process_button(&keyboard->move_right, pressed);} break;
+               case SDLK_W: {sdl_process_button(&keyboard->move_up, pressed);} break;
+               case SDLK_S: {sdl_process_button(&keyboard->move_down, pressed);} break;
+               case SDLK_A: {sdl_process_button(&keyboard->move_left, pressed);} break;
+               case SDLK_D: {sdl_process_button(&keyboard->move_right, pressed);} break;
 
-               case SDLK_q: {sdl_process_button(&keyboard->shoulder_left, pressed);} break;
-               case SDLK_o: {sdl_process_button(&keyboard->shoulder_right, pressed);} break;
+               case SDLK_Q: {sdl_process_button(&keyboard->shoulder_left, pressed);} break;
+               case SDLK_O: {sdl_process_button(&keyboard->shoulder_right, pressed);} break;
                case SDLK_SPACE:     {sdl_process_button(&keyboard->start, pressed);} break;
                case SDLK_BACKSPACE: {sdl_process_button(&keyboard->back, pressed);} break;
             }
          } break;
 
-         case SDL_CONTROLLERBUTTONUP:
-         case SDL_CONTROLLERBUTTONDOWN: {
+         case SDL_EVENT_GAMEPAD_BUTTON_UP:
+         case SDL_EVENT_GAMEPAD_BUTTON_DOWN: {
             int controller_index = sdl_get_controller_index(sdl, event.cdevice.which);
             if(controller_index != GAMECONTROLLER_INDEX_NULL)
             {
                game_controller *con = input->controllers + controller_index;
 
-               bool pressed = event.cbutton.state == SDL_PRESSED;
-               switch(event.cbutton.button)
+               bool pressed = event.button.down;
+               switch(event.button.button)
                {
                   // TODO: Confirm if other controllers map buttons based on name or position.
-                  case SDL_CONTROLLER_BUTTON_A: {sdl_process_button(&con->action_down, pressed);} break;
-                  case SDL_CONTROLLER_BUTTON_B: {sdl_process_button(&con->action_right, pressed);} break;
-                  case SDL_CONTROLLER_BUTTON_X: {sdl_process_button(&con->action_left, pressed);} break;
-                  case SDL_CONTROLLER_BUTTON_Y: {sdl_process_button(&con->action_up, pressed);} break;
+                  case SDL_GAMEPAD_BUTTON_SOUTH: {sdl_process_button(&con->action_down, pressed);} break;
+                  case SDL_GAMEPAD_BUTTON_EAST:  {sdl_process_button(&con->action_right, pressed);} break;
+                  case SDL_GAMEPAD_BUTTON_WEST:  {sdl_process_button(&con->action_left, pressed);} break;
+                  case SDL_GAMEPAD_BUTTON_NORTH: {sdl_process_button(&con->action_up, pressed);} break;
 
-                  case SDL_CONTROLLER_BUTTON_DPAD_UP:    {sdl_process_button(&con->move_up, pressed);} break;
-                  case SDL_CONTROLLER_BUTTON_DPAD_DOWN:  {sdl_process_button(&con->move_down, pressed);} break;
-                  case SDL_CONTROLLER_BUTTON_DPAD_LEFT:  {sdl_process_button(&con->move_left, pressed);} break;
-                  case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: {sdl_process_button(&con->move_right, pressed);} break;
+                  case SDL_GAMEPAD_BUTTON_DPAD_UP:    {sdl_process_button(&con->move_up, pressed);} break;
+                  case SDL_GAMEPAD_BUTTON_DPAD_DOWN:  {sdl_process_button(&con->move_down, pressed);} break;
+                  case SDL_GAMEPAD_BUTTON_DPAD_LEFT:  {sdl_process_button(&con->move_left, pressed);} break;
+                  case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: {sdl_process_button(&con->move_right, pressed);} break;
 
-                  case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:  {sdl_process_button(&con->shoulder_left, pressed);} break;
-                  case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: {sdl_process_button(&con->shoulder_right, pressed);} break;
-                  case SDL_CONTROLLER_BUTTON_START: {sdl_process_button(&con->start, pressed);} break;
-                  case SDL_CONTROLLER_BUTTON_BACK:  {sdl_process_button(&con->back, pressed);} break;
+                  case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:  {sdl_process_button(&con->shoulder_left, pressed);} break;
+                  case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: {sdl_process_button(&con->shoulder_right, pressed);} break;
+                  case SDL_GAMEPAD_BUTTON_START: {sdl_process_button(&con->start, pressed);} break;
+                  case SDL_GAMEPAD_BUTTON_BACK:  {sdl_process_button(&con->back, pressed);} break;
                }
             }
          } break;
 
-         case SDL_CONTROLLERDEVICEADDED: {
+         case SDL_EVENT_GAMEPAD_ADDED: {
             sdl_connect_controller(sdl, input);
          } break;
 
-         case SDL_CONTROLLERDEVICEREMOVED: {
+         case SDL_EVENT_GAMEPAD_REMOVED: {
             int controller_index = sdl_get_controller_index(sdl, event.cdevice.which);
             if(controller_index != GAMECONTROLLER_INDEX_NULL)
             {
@@ -291,12 +298,12 @@ static void sdl_render(sdl_context *sdl, game_texture backbuffer)
    int src_height = backbuffer.height;
 
    int dst_width, dst_height;
-   SDL_GetRendererOutputSize(sdl->renderer, &dst_width, &dst_height);
+   SDL_GetCurrentRenderOutputSize(sdl->renderer, &dst_width, &dst_height);
 
    float src_aspect = (float)src_width / (float)src_height;
    float dst_aspect = (float)dst_width / (float)dst_height;
 
-   SDL_Rect dst_rect = {0, 0, dst_width, dst_height};
+   SDL_FRect dst_rect = {0, 0, (float)dst_width, (float)dst_height};
    if(src_aspect > dst_aspect)
    {
       // NOTE: Bars on top and bottom.
@@ -314,13 +321,14 @@ static void sdl_render(sdl_context *sdl, game_texture backbuffer)
 
    // NOTE: Copy the backbuffer to SDL's renderer and present.
    SDL_UpdateTexture(sdl->texture, 0, backbuffer.memory, backbuffer.width * sizeof(*backbuffer.memory));
-   SDL_RenderCopy(sdl->renderer, sdl->texture, 0, &dst_rect);
+   SDL_RenderTexture(sdl->renderer, sdl->texture, 0, &dst_rect);
 
    SDL_RenderPresent(sdl->renderer);
 }
 
 #define ELAPSED_SECONDS(start, end, freq) ((float)((end) - (start)) / (float)(freq))
 
+#if NETWORKING_SUPPORTED
 static void sdl_exchange_packets(sdl_context *sdl, game_context *game)
 {
    memsize packet_size = sizeof(game->packet);
@@ -342,15 +350,18 @@ static void sdl_exchange_packets(sdl_context *sdl, game_context *game)
       game->spacket = *(server_packet *)sdl->packet->data;
    }
 }
+#endif
 
 static void sdl_frame_end(sdl_context *sdl, game_context *game)
 {
+#if NETWORKING_SUPPORTED
    // NOTE: Send this frame's game data to the server and store any response we
    // get back.
    if(game->send_packet)
    {
       sdl_exchange_packets(sdl, game);
    }
+#endif
 
    // NOTE: Compute how much time has elapsed this frame.
    float target = sdl->target_frame_seconds;
@@ -412,8 +423,10 @@ int main(int argument_count, char **arguments)
       sdl_frame_end(&sdl, &game);
    }
 
+#if NETWORKING_SUPPORTED
    SDLNet_FreePacket(sdl.packet);
    SDLNet_Quit();
+#endif
 
    return(0);
 }
