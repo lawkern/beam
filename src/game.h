@@ -76,6 +76,7 @@ struct game_controller
 
 struct game_input
 {
+   float frame_seconds;
    game_controller controllers[GAMECONTROLLER_COUNT_MAX];
 };
 
@@ -137,7 +138,7 @@ struct game_context
 #define GAME_INITIALIZE(name) void name(game_context *game)
 
 // NOTE: Update the game simulation. This should be called once per frame.
-#define GAME_UPDATE(name) void name(game_context *game, float dt)
+#define GAME_UPDATE(name) void name(game_context *game)
 
 // NOTE: Render any buffered commands. This should be called once per frame.
 #define GAME_RENDER(name) void name(game_context *game)

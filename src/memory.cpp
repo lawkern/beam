@@ -8,14 +8,14 @@ static memarena arena_new(memsize size)
 {
    memarena result = {};
 
-   result.base = (u8 *)pallocate(size);
+   result.base = (u8 *)platform_allocate(size);
    if(result.base)
    {
       result.size = size;
    }
    else
    {
-      plog("ERROR: Failed to allocate arena.\n");
+      platform_log("ERROR: Failed to allocate arena.\n");
    }
 
    return(result);

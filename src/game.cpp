@@ -38,12 +38,12 @@ static void print_controller_inputs(game_input *input, int controller_index)
    game_controller *con = input->controllers + controller_index;
 
 #  define X(button_name) if(was_pressed(con->buttons[GAME_BUTTON_##button_name])) \
-      plog("Controller %d pressed %s\n", controller_index, #button_name);
+      platform_log("Controller %d pressed %s\n", controller_index, #button_name);
    GAME_BUTTONS;
 #  undef X
 
 #  define X(button_name) if(was_released(con->buttons[GAME_BUTTON_##button_name])) \
-      plog("Controller %d released %s\n", controller_index, #button_name);
+      platform_log("Controller %d released %s\n", controller_index, #button_name);
    GAME_BUTTONS;
 #  undef X
 }
@@ -56,7 +56,7 @@ GAME_INITIALIZE(game_initialize)
 
    // TODO: This is not a particularly smart way to differentiate clients. Using
    // the game_context pointer as a seed value is also a bit silly.
-   plog("Client ID: %llu\n", game->client_id);
+   platform_log("Client ID: %llu\n", game->client_id);
 
    // NOTE: Initialize memory.
    game->perma = arena_new(MEGABYTES(512 * 4));
@@ -73,7 +73,7 @@ GAME_INITIALIZE(game_initialize)
    backbuffer->memory = arena_array(&game->perma, u32, backbuffer->width*backbuffer->height);
    if(!backbuffer->memory)
    {
-      plog("ERROR: Failed to allocate the game backbuffer.\n");
+      platform_log("ERROR: Failed to allocate the game backbuffer.\n");
       return;
    }
 
@@ -82,7 +82,7 @@ GAME_INITIALIZE(game_initialize)
    game->triangles = arena_array(&game->perma, render_triangle, game->triangle_count_max);
    if(!game->triangles)
    {
-      plog("ERROR: Failed to allocate the triangle list.\n");
+      platform_log("ERROR: Failed to allocate the triangle list.\n");
       return;
    }
 
@@ -90,7 +90,7 @@ GAME_INITIALIZE(game_initialize)
    game->render_commands = arena_array(&game->perma, render_command, game->render_command_count_max);
    if(!game->render_commands)
    {
-      plog("ERROR: Failed to allocate the render command list.\n");
+      platform_log("ERROR: Failed to allocate the render command list.\n");
       return;
    }
 
@@ -120,6 +120,8 @@ GAME_UPDATE(game_update)
    game_texture backbuffer = game->backbuffer;
    game_input *input = game->inputs + game->input_index++;
    game->input_index %= countof(game->inputs);
+
+   float dt = input->frame_seconds;
 
    memarena *perma = &game->perma;
    memarena *frame = &game->frame;
@@ -157,7 +159,7 @@ GAME_UPDATE(game_update)
 
          float turns = 0.1f * dt;
          if(is_held(con->shoulder_left))  e->rotation.z -= turns;
-         if(is_held(con->shoulder_right)) e->rotation.z -= turns;
+         if(is_held(con->shoulder_right)) e->rotation.z += turns;
 
          if(direction.x || direction.y || direction.z)
          {

@@ -38,6 +38,7 @@ typedef ptrdiff_t memsize;
 #   define assert JANK_ASSERT
 #endif
 
+#define NETWORKING_SUPPORTED 0
 #define SERVER_HOST "localhost"
 #define SERVER_PORT 2000
 #define SERVER_PACKET_SIZE 512

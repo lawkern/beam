@@ -469,23 +469,23 @@ vec3 project(mat4 projection, vec3 v)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static void print(vec4 v, char *name = "")
+static void print(vec4 v, const char *name = "")
 {
-   plog("%s: {%f %f %f %f}\n", name, v.x, v.y, v.z, v.w);
+   platform_log("%s: {%f %f %f %f}\n", name, v.x, v.y, v.z, v.w);
 }
 
-static void print(vec3 v, char *name = "")
+static void print(vec3 v, const char *name = "")
 {
-   plog("%s: {%f %f %f}\n", name, v.x, v.y, v.z);
+   platform_log("%s: {%f %f %f}\n", name, v.x, v.y, v.z);
 }
 
-static void print(mat4 m, char *name = "")
+static void print(mat4 m, const char *name = "")
 {
-   if(*name) plog("%s:\n", name);
+   if(*name) platform_log("%s:\n", name);
 
-   plog("|%f %f %f %f|\n", m.e[0][0], m.e[0][1], m.e[0][2], m.e[0][3]);
-   plog("|%f %f %f %f|\n", m.e[1][0], m.e[1][1], m.e[1][2], m.e[1][3]);
-   plog("|%f %f %f %f|\n", m.e[2][0], m.e[2][1], m.e[2][2], m.e[2][3]);
-   plog("|%f %f %f %f|\n", m.e[3][0], m.e[3][1], m.e[3][2], m.e[3][3]);
-   plog("\n");
+   platform_log("|%f %f %f %f|\n", m.e[0][0], m.e[0][1], m.e[0][2], m.e[0][3]);
+   platform_log("|%f %f %f %f|\n", m.e[1][0], m.e[1][1], m.e[1][2], m.e[1][3]);
+   platform_log("|%f %f %f %f|\n", m.e[2][0], m.e[2][1], m.e[2][2], m.e[2][3]);
+   platform_log("|%f %f %f %f|\n", m.e[3][0], m.e[3][1], m.e[3][2], m.e[3][3]);
+   platform_log("\n");
 }

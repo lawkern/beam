@@ -28,17 +28,17 @@ SERVER_UPDATE(server_update)
       player = server->players + server->player_count++;
       player->client_id = packet->client_id;
 
-      plog("Client %llu joined the server (player count = %d).\n", player->client_id, server->player_count);
+      platform_log("Client %llu joined the server (player count = %d).\n", player->client_id, server->player_count);
    }
 
    // NOTE: Update the player's position on the server.
    player->position = packet->position;
 
-   plog("pos (%x): {%0.3f, %0.3f, %0.3f}\n",
-        player->client_id,
-        player->position.x,
-        player->position.y,
-        player->position.z);
+   platform_log("pos (%x): {%0.3f, %0.3f, %0.3f}\n",
+                player->client_id,
+                player->position.x,
+                player->position.y,
+                player->position.z);
 
    // NOTE: Send back information on all other player locations.
    result.opponent_count = 0;
