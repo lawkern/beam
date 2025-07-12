@@ -31,9 +31,8 @@ struct game_button
 };
 
 
-#define GAMECONTROLLER_INDEX_NULL    (-1)
 #define GAMECONTROLLER_INDEX_KEYBOARD (0)
-#define GAMECONTROLLER_COUNT_MAX      (4)
+#define GAMECONTROLLER_COUNT_MAX      (5) // 1 Keyboard + 4 Gamepads
 
 #define GAME_BUTTONS                            \
    X(action_up)                                 \

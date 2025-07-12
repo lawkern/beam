@@ -128,53 +128,44 @@ PLATFORM_INITIALIZE(platform_initialize)
 #endif
 }
 
-static void sdl_connect_controller(game_input *input)
+static void sdl_connect_controller(game_input *input, SDL_JoystickID id)
 {
    // NOTE: Find the first available controller slot and store the controller
    // pointer. The indices for sdl.controllers and input->controllers must be
    // manually maintained.
 
-   for(int controller_index = 0; controller_index < GAMECONTROLLER_COUNT_MAX; ++controller_index)
+   if(SDL_IsGamepad(id))
    {
-      if(sdl.controllers[controller_index] == 0 && SDL_IsGamepad(controller_index))
-      {
-         sdl.controllers[controller_index] = SDL_OpenGamepad(controller_index);
-         if(sdl.controllers[controller_index])
-         {
-            input->controllers[controller_index].connected = true;
-            platform_log("Controller added at slot %d\n", controller_index);
-         }
-         else
-         {
-            platform_log("ERROR: %s\n", SDL_GetError());
-         }
+	  for(int controller_index = 1; controller_index < GAMECONTROLLER_COUNT_MAX; ++controller_index)
+	  {
+		 if(!sdl.controllers[controller_index])
+		 {
+			sdl.controllers[controller_index] = SDL_OpenGamepad(id);
+			if(sdl.controllers[controller_index])
+			{
+			   input->controllers[controller_index].connected = true;
+			   platform_log("Controller added at slot %d\n", controller_index);
+			}
+			else
+			{
+			   platform_log("ERROR: %s\n", SDL_GetError());
+			}
 
-         // TODO: Should we only break on success? Look into what types of
-         // errors are actually caught here.
-         break;
-      }
+			break;
+		 }
+	  }
    }
-}
-
-static void sdl_disconnect_controller(game_input *input, int controller_index)
-{
-   assert(controller_index >= 0);
-   assert(controller_index < GAMECONTROLLER_COUNT_MAX);
-   assert(sdl.controllers[controller_index]);
-
-   SDL_CloseGamepad(sdl.controllers[controller_index]);
-
-   sdl.controllers[controller_index] = 0;
-   input->controllers[controller_index].connected = false;
-
-   platform_log("Controller removed from slot %d\n", controller_index);
+   else
+   {
+	  platform_log("ERROR: %s\n", SDL_GetError());
+   }
 }
 
 static int sdl_get_controller_index(SDL_JoystickID id)
 {
-   int result = GAMECONTROLLER_INDEX_NULL;
+   int result = 0;
 
-   for(int controller_index = 0; controller_index < GAMECONTROLLER_COUNT_MAX; ++controller_index)
+   for(int controller_index = 1; controller_index < GAMECONTROLLER_COUNT_MAX; ++controller_index)
    {
       SDL_Gamepad *test = sdl.controllers[controller_index];
       if(test)
@@ -189,6 +180,28 @@ static int sdl_get_controller_index(SDL_JoystickID id)
    }
 
    return(result);
+}
+
+static void sdl_disconnect_controller(game_input *input, SDL_JoystickID id)
+{
+   if(SDL_IsGamepad(id))
+   {
+	  int controller_index = sdl_get_controller_index(id);
+	  assert(controller_index > 0);
+	  assert(controller_index < GAMECONTROLLER_COUNT_MAX);
+	  assert(sdl.controllers[controller_index]);
+
+	  SDL_CloseGamepad(sdl.controllers[controller_index]);
+
+	  sdl.controllers[controller_index] = 0;
+	  input->controllers[controller_index].connected = false;
+
+	  platform_log("Controller removed from slot %d\n", controller_index);
+   }
+   else
+   {
+	  platform_log("This joystick is not supported by SDL's gamepad interface.\n");
+   }
 }
 
 static void sdl_process_button(game_button *button, bool pressed)
@@ -213,6 +226,7 @@ PLATFORM_FRAME_BEGIN(platform_frame_begin)
          case SDL_EVENT_KEY_UP:
          case SDL_EVENT_KEY_DOWN: {
             game_controller *keyboard = input->controllers + GAMECONTROLLER_INDEX_KEYBOARD;
+			keyboard->connected = true;
 
             bool pressed = event.key.down;
             switch(event.key.key)
@@ -245,43 +259,39 @@ PLATFORM_FRAME_BEGIN(platform_frame_begin)
 
          case SDL_EVENT_GAMEPAD_BUTTON_UP:
          case SDL_EVENT_GAMEPAD_BUTTON_DOWN: {
-            int controller_index = sdl_get_controller_index(event.cdevice.which);
-            if(controller_index != GAMECONTROLLER_INDEX_NULL)
-            {
-               game_controller *con = input->controllers + controller_index;
+            int controller_index = sdl_get_controller_index(event.gdevice.which);
+			assert(controller_index > 0);
+			assert(controller_index < GAMECONTROLLER_COUNT_MAX);
 
-               bool pressed = event.button.down;
-               switch(event.button.button)
-               {
-                  // TODO: Confirm if other controllers map buttons based on name or position.
-                  case SDL_GAMEPAD_BUTTON_SOUTH: {sdl_process_button(&con->action_down, pressed);} break;
-                  case SDL_GAMEPAD_BUTTON_EAST:  {sdl_process_button(&con->action_right, pressed);} break;
-                  case SDL_GAMEPAD_BUTTON_WEST:  {sdl_process_button(&con->action_left, pressed);} break;
-                  case SDL_GAMEPAD_BUTTON_NORTH: {sdl_process_button(&con->action_up, pressed);} break;
+			game_controller *con = input->controllers + controller_index;
 
-                  case SDL_GAMEPAD_BUTTON_DPAD_UP:    {sdl_process_button(&con->move_up, pressed);} break;
-                  case SDL_GAMEPAD_BUTTON_DPAD_DOWN:  {sdl_process_button(&con->move_down, pressed);} break;
-                  case SDL_GAMEPAD_BUTTON_DPAD_LEFT:  {sdl_process_button(&con->move_left, pressed);} break;
-                  case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: {sdl_process_button(&con->move_right, pressed);} break;
+			bool pressed = event.button.down;
+			switch(event.button.button)
+			{
+			   // TODO: Confirm if other controllers map buttons based on name or position.
+			   case SDL_GAMEPAD_BUTTON_SOUTH: {sdl_process_button(&con->action_down, pressed);} break;
+			   case SDL_GAMEPAD_BUTTON_EAST:  {sdl_process_button(&con->action_right, pressed);} break;
+			   case SDL_GAMEPAD_BUTTON_WEST:  {sdl_process_button(&con->action_left, pressed);} break;
+			   case SDL_GAMEPAD_BUTTON_NORTH: {sdl_process_button(&con->action_up, pressed);} break;
 
-                  case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:  {sdl_process_button(&con->shoulder_left, pressed);} break;
-                  case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: {sdl_process_button(&con->shoulder_right, pressed);} break;
-                  case SDL_GAMEPAD_BUTTON_START: {sdl_process_button(&con->start, pressed);} break;
-                  case SDL_GAMEPAD_BUTTON_BACK:  {sdl_process_button(&con->back, pressed);} break;
-               }
-            }
+			   case SDL_GAMEPAD_BUTTON_DPAD_UP:    {sdl_process_button(&con->move_up, pressed);} break;
+			   case SDL_GAMEPAD_BUTTON_DPAD_DOWN:  {sdl_process_button(&con->move_down, pressed);} break;
+			   case SDL_GAMEPAD_BUTTON_DPAD_LEFT:  {sdl_process_button(&con->move_left, pressed);} break;
+			   case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: {sdl_process_button(&con->move_right, pressed);} break;
+
+			   case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:  {sdl_process_button(&con->shoulder_left, pressed);} break;
+			   case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: {sdl_process_button(&con->shoulder_right, pressed);} break;
+			   case SDL_GAMEPAD_BUTTON_START: {sdl_process_button(&con->start, pressed);} break;
+			   case SDL_GAMEPAD_BUTTON_BACK:  {sdl_process_button(&con->back, pressed);} break;
+			}
          } break;
 
          case SDL_EVENT_GAMEPAD_ADDED: {
-            sdl_connect_controller(input);
+            sdl_connect_controller(input, event.gdevice.which);
          } break;
 
          case SDL_EVENT_GAMEPAD_REMOVED: {
-            int controller_index = sdl_get_controller_index(event.cdevice.which);
-            if(controller_index != GAMECONTROLLER_INDEX_NULL)
-            {
-               sdl_disconnect_controller(input, controller_index);
-            }
+			sdl_disconnect_controller(input, event.gdevice.which);
          } break;
       }
    }
